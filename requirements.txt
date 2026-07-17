@@ -1,0 +1,9 @@
+PyYAML>=6.0
+pytz>=2024.1
+requests>=2.31
+pytest>=8.0
+
+# 将来 Parquet/DuckDB backend へ切り替える場合のみ追加インストール
+# （現行実装は標準ライブラリの sqlite3/json/gzip のみで動作する）:
+# pyarrow>=16.0
+# duckdb>=1.0

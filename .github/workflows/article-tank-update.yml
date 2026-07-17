@@ -1,0 +1,77 @@
+name: Article Tank Update
+
+# Article Intelligence Data Tank の独立ワークフロー（§11）。
+# Market Intelligence System（daily-market-brief）の1日6回のレポート生成より
+# 15分前にDataTankを更新し、Market Intelligence側が最新のPublished Packageを
+# 取得できるようにする（§10）。ただしGitHub Actions側のスケジュール遅延は
+# 解消できないため、完全同期は前提にしない。
+#
+# 更新時刻（JST）: 07:10 / 08:55 / 11:15 / 12:25 / 15:25 / 17:05
+#   07:10 JST = 22:10 UTC（前日） / 08:55 JST = 23:55 UTC（前日）
+#   11:15 JST = 02:15 UTC / 12:25 JST = 03:25 UTC
+#   15:25 JST = 06:25 UTC / 17:05 JST = 08:05 UTC
+#
+# Market Intelligence 側のworkflowから、この重い処理を直接呼び出さないこと
+# （Data Tankは完全に独立したリポジトリ・スケジュールで動く）。
+
+on:
+  schedule:
+    - cron: "10 22 * * *"   # 07:10 JST
+    - cron: "55 23 * * *"   # 08:55 JST
+    - cron: "15 2 * * *"    # 11:15 JST
+    - cron: "25 3 * * *"    # 12:25 JST
+    - cron: "25 6 * * *"    # 15:25 JST
+    - cron: "5 8 * * *"     # 17:05 JST
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: article-tank-update-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  update-tank:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run ingestion and publish package
+        run: python scripts/run_ingestion.py
+
+      - name: Commit and push tank data + published package
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/article_store published 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "変更がないためコミットをスキップします。"
+          else
+            git commit -m "Update article tank data and published package"
+            for i in 1 2 3 4 5; do
+              git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push && break
+              echo "push 競合またはネットワークエラー。${i} 回目の再試行をします..."
+              sleep $((i*3))
+            done
+          fi
+
+      - name: Write job summary
+        if: always()
+        run: |
+          {
+            echo "### Article Tank Update 実行結果"
+            echo ""
+            if [ -f published/latest/manifest.json ]; then
+              echo "- ✅ published/latest/manifest.json 生成"
+            else
+              echo "- ❌ published/latest/manifest.json が見つかりません"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

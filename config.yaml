@@ -1,0 +1,53 @@
+# Article Intelligence Data Tank — config.yaml
+#
+# 実際のニュース取得先は sources へ「公開RSS/公開API/公式発表」のURLを追加してください。
+# 有料記事・ログイン必須ページ・利用規約が不明なスクレイピング対象は追加しないこと。
+# sources が空の間は、scripts/run_ingestion.py は新着0件として安全に高速終了します。
+
+article_tank:
+  enabled: true
+  timezone: "Asia/Tokyo"
+  storage_backend: "local_sharded"   # JSONLシャード（将来 "parquet" 等へ拡張可能）
+  storage_format: "jsonl"            # pyarrow/duckdbを追加インストールせずに動く既定実装
+  hot_hours: 72
+  warm_days: 90
+  retention_days: null               # null = 無期限保持
+  overlap_hours: 48
+  max_fetch_workers: 6
+  source_timeout_seconds: 12
+  source_retry_count: 1
+  max_source_share: 0.25
+  max_theme_share: 0.35
+  max_event_cluster_articles: 3
+  market_reaction_first: true
+  event_clustering_enabled: true
+  bias_monitoring_enabled: true
+  persist_public_fulltext: false
+  persist_public_excerpt: true
+  persist_private_body: false
+
+publication:
+  enabled: true
+  backend: "local_static"            # local_static / github_pages / github_release / object_storage
+  compression: "gzip"
+  max_hot_articles: 100
+  max_global_drivers: 20
+  max_market_reactions: 30
+  max_risk_items: 20
+  max_event_clusters: 30
+  max_historical_matches: 20
+  max_source_health: 100
+  package_max_uncompressed_mb: 5
+
+# 実際のニュース取得先（公開RSS/公開API/公式発表のみ）。
+# 例: - { name: "official_source_example", url: "https://example.gov/press.rss", type: "rss",
+#         trust: 0.9, country: "US", language: "en" }
+sources: []
+
+# 分類キーワード（§17 公平性）。src/tank/classify.py の DEFAULT_CATEGORY_KEYWORDS を
+# 上書き・追加したい場合のみ指定する（省略時は既定辞書を使用）。
+category_keywords: {}
+
+data_dir: "data/article_store"
+published_dir: "published/latest"
+snapshots_dir: "published/snapshots"

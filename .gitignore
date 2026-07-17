@@ -1,0 +1,34 @@
+# Python
+.venv/
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+*.egg-info/
+
+# 実行時に生成されるデータ（記事本体・インデックス・配信物）はリポジトリへコミットしない。
+# ディレクトリ構造だけ .gitkeep で保持する。
+data/article_store/shards/*
+!data/article_store/shards/.gitkeep
+data/article_store/indexes/*
+!data/article_store/indexes/.gitkeep
+data/article_store/cursors/*
+!data/article_store/cursors/.gitkeep
+data/article_store/clusters/*
+!data/article_store/clusters/.gitkeep
+data/article_store/manifests/*
+!data/article_store/manifests/.gitkeep
+data/article_store/statistics/*
+!data/article_store/statistics/.gitkeep
+data/article_store/quarantine/*
+!data/article_store/quarantine/.gitkeep
+data/article_store/private/*
+!data/article_store/private/.gitkeep
+
+published/latest/*
+!published/latest/.gitkeep
+published/snapshots/*
+!published/snapshots/.gitkeep
+published/manifests/*
+!published/manifests/.gitkeep
+
+*.log
