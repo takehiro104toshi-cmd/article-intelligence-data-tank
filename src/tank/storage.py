@@ -22,7 +22,7 @@ import json
 import os
 import shutil
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator, List, Optional
 
@@ -100,7 +100,7 @@ class ArticleStore:
 
     def _quarantine(self, path: Path) -> None:
         self.quarantine_dir.mkdir(parents=True, exist_ok=True)
-        dest = self.quarantine_dir / f"{path.stem}.{datetime.utcnow().strftime('%Y%m%dT%H%M%S')}.corrupt"
+        dest = self.quarantine_dir / f"{path.stem}.{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}.corrupt"
         try:
             shutil.move(str(path), str(dest))
         except OSError:
@@ -139,7 +139,7 @@ class ArticleStore:
             "total_articles": total,
             "oldest_date": oldest,
             "newest_date": newest,
-            "generated_at_utc": datetime.utcnow().isoformat() + "Z",
+            "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         }
         return manifest
 

@@ -4,31 +4,28 @@ __pycache__/
 **/__pycache__/
 .pytest_cache/
 *.egg-info/
+*.log
 
-# 実行時に生成されるデータ（記事本体・インデックス・配信物）はリポジトリへコミットしない。
-# ディレクトリ構造だけ .gitkeep で保持する。
-data/article_store/shards/*
-!data/article_store/shards/.gitkeep
+# ===== GitHub Actions で永続化する（コミットする）もの =====
+# 記事シャード（JSONL・追記型・gitに優しいテキスト）、cursor、cluster、統計、
+# および配信物（published/latest の manifest と gz）はコミットして、
+# 実行間の増分取得（ETag/cursor）・重複排除・配信を成立させる。
+# → これらは *ignore しない*（明示的に何も書かない＝追跡される）。
+
+# ===== コミットしない（ローカル/派生/機微）もの =====
+# SQLite索引はバイナリで毎回変化しrepoを肥大化させるため追跡しない。
+# GitHub Actions のチェックアウト後、シャードから自動再構築する（run_ingestion.py）。
 data/article_store/indexes/*
 !data/article_store/indexes/.gitkeep
-data/article_store/cursors/*
-!data/article_store/cursors/.gitkeep
-data/article_store/clusters/*
-!data/article_store/clusters/.gitkeep
-data/article_store/manifests/*
-!data/article_store/manifests/.gitkeep
-data/article_store/statistics/*
-!data/article_store/statistics/.gitkeep
-data/article_store/quarantine/*
-!data/article_store/quarantine/.gitkeep
+
+# private記事本文（有料記事等）は公開リポジトリへ絶対に出さない（§27）。
 data/article_store/private/*
 !data/article_store/private/.gitkeep
 
-published/latest/*
-!published/latest/.gitkeep
+# 破損シャードの隔離（デバッグ用ローカル）。
+data/article_store/quarantine/*
+!data/article_store/quarantine/.gitkeep
+
+# 配信スナップショット履歴はサイズが増えるため追跡しない（latest のみ公開）。
 published/snapshots/*
 !published/snapshots/.gitkeep
-published/manifests/*
-!published/manifests/.gitkeep
-
-*.log

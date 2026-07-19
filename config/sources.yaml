@@ -1,0 +1,348 @@
+# Article Intelligence Data Tank — ニュースソース定義（§5, §6）
+#
+# 公開RSS / Atom のみ。ログイン必須・有料本文・利用規約が不明なスクレイピング対象は
+# 追加しないこと。全文取得は行わず、フィードの要約（summary）のみ取り込む。
+#
+# ★重要（到達性の確認）★
+#   このファイルの URL は「公開RSS/Atomとして広く知られ、長期間安定している」ものを
+#   選定していますが、ビルド環境（サンドボックス）はegressが制限されており各URLの
+#   到達性を確認できませんでした。初回のライブ取得の前に、必ず次を実行してください:
+#
+#       python scripts/run_ingestion.py --verify
+#
+#   FAIL となったソースは enabled: false にするか、正しいURLへ修正してください。
+#   仕様（§6）に従い、確認できないURLは enabled: false のまま（推測で有効化しない）。
+#
+# フィールド（§5）:
+#   id / name / url / enabled / format(auto|rss|atom) / source_class /
+#   country / region / language / primary_category / trust_score(0-100) /
+#   fetch_interval_minutes
+#
+# source_class: primary_official / official_corporate / international_institution /
+#               major_news / specialist_media / aggregator / unknown
+
+sources:
+  # ---------- 中央銀行・金融政策 ----------
+  - id: fed_press
+    name: U.S. Federal Reserve — Press Releases
+    url: "https://www.federalreserve.gov/feeds/press_all.xml"
+    enabled: true
+    format: auto
+    source_class: primary_official
+    country: US
+    region: North America
+    language: en
+    primary_category: monetary_policy
+    trust_score: 98
+    fetch_interval_minutes: 60
+
+  - id: boj_whatsnew
+    name: Bank of Japan — What's New (English)
+    url: "https://www.boj.or.jp/en/rss/whatsnew.xml"
+    enabled: true
+    format: auto
+    source_class: primary_official
+    country: JP
+    region: Asia
+    language: en
+    primary_category: monetary_policy
+    trust_score: 98
+    fetch_interval_minutes: 60
+
+  - id: ecb_press
+    name: European Central Bank — Press
+    url: "https://www.ecb.europa.eu/rss/press.html"
+    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    format: auto
+    source_class: primary_official
+    country: EU
+    region: Europe
+    language: en
+    primary_category: monetary_policy
+    trust_score: 97
+    fetch_interval_minutes: 60
+
+  - id: boe_news
+    name: Bank of England — News
+    url: "https://www.bankofengland.co.uk/rss/news"
+    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    format: auto
+    source_class: primary_official
+    country: GB
+    region: Europe
+    language: en
+    primary_category: monetary_policy
+    trust_score: 96
+    fetch_interval_minutes: 60
+
+  # ---------- 政府・財政・統計 ----------
+  - id: us_bls
+    name: U.S. Bureau of Labor Statistics — News Releases
+    # 2026-07-18 のライブ確認で HTTP 404。別URL候補を --verify で確認してから有効化すること。
+    # 候補: "https://www.bls.gov/feed/bls_latest.rss" / 一覧は https://www.bls.gov/feed/
+    url: "https://www.bls.gov/feed/news_release.rss"
+    enabled: false
+    format: auto
+    source_class: primary_official
+    country: US
+    region: North America
+    language: en
+    primary_category: employment
+    trust_score: 96
+    fetch_interval_minutes: 120
+
+  - id: uk_gov
+    name: UK Government — Announcements
+    # 2026-07-18 のライブ確認で HTTP 404。別URL候補を --verify で確認してから有効化すること。
+    # 候補: "https://www.gov.uk/search/news-and-communications.atom"
+    url: "https://www.gov.uk/government/announcements.atom"
+    enabled: false
+    format: atom
+    source_class: primary_official
+    country: GB
+    region: Europe
+    language: en
+    primary_category: fiscal_policy
+    trust_score: 92
+    fetch_interval_minutes: 120
+
+  - id: us_treasury
+    name: U.S. Department of the Treasury — Press
+    url: "https://home.treasury.gov/rss/press.xml"
+    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    format: auto
+    source_class: primary_official
+    country: US
+    region: North America
+    language: en
+    primary_category: fiscal_policy
+    trust_score: 95
+    fetch_interval_minutes: 120
+
+  # ---------- 国際機関 ----------
+  - id: un_news
+    name: UN News — All
+    url: "https://news.un.org/feed/subscribe/en/news/all/rss.xml"
+    enabled: true
+    format: auto
+    source_class: international_institution
+    country: ""
+    region: Global
+    language: en
+    primary_category: geopolitics
+    trust_score: 88
+    fetch_interval_minutes: 90
+
+  - id: imf_news
+    name: IMF — News
+    url: "https://www.imf.org/en/News/rss"
+    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    format: auto
+    source_class: international_institution
+    country: ""
+    region: Global
+    language: en
+    primary_category: gdp
+    trust_score: 90
+    fetch_interval_minutes: 180
+
+  - id: wto_news
+    name: WTO — Latest News
+    url: "https://www.wto.org/library/rss/latest_news_e.xml"
+    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    format: auto
+    source_class: international_institution
+    country: ""
+    region: Global
+    language: en
+    primary_category: tariffs
+    trust_score: 89
+    fetch_interval_minutes: 180
+
+  # ---------- マクロ・主要ニュース ----------
+  - id: bbc_business
+    name: BBC News — Business
+    url: "https://feeds.bbci.co.uk/news/business/rss.xml"
+    enabled: true
+    format: auto
+    source_class: major_news
+    country: GB
+    region: Europe
+    language: en
+    primary_category: manufacturing
+    trust_score: 80
+    fetch_interval_minutes: 45
+
+  - id: bbc_world
+    name: BBC News — World
+    url: "https://feeds.bbci.co.uk/news/world/rss.xml"
+    enabled: true
+    format: auto
+    source_class: major_news
+    country: GB
+    region: Global
+    language: en
+    primary_category: geopolitics
+    trust_score: 80
+    fetch_interval_minutes: 45
+
+  - id: guardian_business
+    name: The Guardian — Business
+    url: "https://www.theguardian.com/uk/business/rss"
+    enabled: true
+    format: auto
+    source_class: major_news
+    country: GB
+    region: Europe
+    language: en
+    primary_category: banking
+    trust_score: 76
+    fetch_interval_minutes: 45
+
+  - id: cnbc_markets
+    name: CNBC — Markets
+    url: "https://www.cnbc.com/id/100003114/device/rss/rss.html"
+    enabled: true
+    format: auto
+    source_class: major_news
+    country: US
+    region: North America
+    language: en
+    primary_category: rates
+    trust_score: 72
+    fetch_interval_minutes: 45
+
+  - id: npr_business
+    name: NPR — Business
+    url: "https://feeds.npr.org/1006/rss.xml"
+    enabled: true
+    format: auto
+    source_class: major_news
+    country: US
+    region: North America
+    language: en
+    primary_category: consumption
+    trust_score: 74
+    fetch_interval_minutes: 60
+
+  - id: aljazeera_all
+    name: Al Jazeera — All News
+    url: "https://www.aljazeera.com/xml/rss/all.xml"
+    enabled: true
+    format: auto
+    source_class: major_news
+    country: QA
+    region: Middle East
+    language: en
+    primary_category: diplomacy_war
+    trust_score: 72
+    fetch_interval_minutes: 45
+
+  # ---------- アジア・中国・日本 ----------
+  - id: scmp_news
+    name: South China Morning Post — News
+    url: "https://www.scmp.com/rss/91/feed"
+    enabled: true
+    format: auto
+    source_class: major_news
+    country: HK
+    region: Asia
+    language: en
+    primary_category: us_china
+    trust_score: 70
+    fetch_interval_minutes: 60
+
+  - id: japan_times
+    name: The Japan Times — News
+    url: "https://www.japantimes.co.jp/feed/"
+    enabled: true
+    format: auto
+    source_class: major_news
+    country: JP
+    region: Asia
+    language: en
+    primary_category: manufacturing
+    trust_score: 72
+    fetch_interval_minutes: 60
+
+  # ---------- 資源・エネルギー ----------
+  - id: eia_today
+    name: U.S. EIA — Today in Energy
+    url: "https://www.eia.gov/rss/todayinenergy.xml"
+    enabled: true
+    format: auto
+    source_class: primary_official
+    country: US
+    region: North America
+    language: en
+    primary_category: oil
+    trust_score: 90
+    fetch_interval_minutes: 180
+
+  - id: oilprice
+    name: OilPrice.com — Latest
+    url: "https://oilprice.com/rss/main"
+    enabled: true
+    format: auto
+    source_class: specialist_media
+    country: US
+    region: Global
+    language: en
+    primary_category: oil
+    trust_score: 62
+    fetch_interval_minutes: 90
+
+  # ---------- 防衛・安全保障 ----------
+  - id: defense_news
+    name: Defense News — Latest
+    url: "https://www.defensenews.com/arc/outboundfeeds/rss/?outputType=xml"
+    enabled: true
+    format: auto
+    source_class: specialist_media
+    country: US
+    region: Global
+    language: en
+    primary_category: defense
+    trust_score: 66
+    fetch_interval_minutes: 120
+
+  # ---------- 科学・気候・環境 ----------
+  - id: bbc_scienv
+    name: BBC News — Science & Environment
+    url: "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml"
+    enabled: true
+    format: auto
+    source_class: major_news
+    country: GB
+    region: Global
+    language: en
+    primary_category: environment
+    trust_score: 78
+    fetch_interval_minutes: 120
+
+  # ---------- テクノロジー（AI・半導体へ偏らせない一般テック） ----------
+  - id: arstechnica
+    name: Ars Technica — All
+    url: "http://feeds.arstechnica.com/arstechnica/index"
+    enabled: true
+    format: auto
+    source_class: specialist_media
+    country: US
+    region: Global
+    language: en
+    primary_category: technology
+    trust_score: 66
+    fetch_interval_minutes: 120
+
+  - id: theverge
+    name: The Verge — All
+    url: "https://www.theverge.com/rss/index.xml"
+    enabled: true
+    format: atom
+    source_class: specialist_media
+    country: US
+    region: Global
+    language: en
+    primary_category: technology
+    trust_score: 62
+    fetch_interval_minutes: 120

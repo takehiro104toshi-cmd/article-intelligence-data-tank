@@ -60,50 +60,83 @@ pytest -q
 
 ## ニュース取得先の追加
 
-`config.yaml` の `sources: []` は初期状態で空です（安全側デフォルト）。
-公開RSS・公開API・公式発表のURLのみを追加してください（有料記事・ログイン必須
-ページ・利用規約が不明なスクレイピング対象は追加しないこと）。
+ニュースソースは **`config/sources.yaml`** で管理します（`config.yaml` の `sources:` へ
+直接書くこともでき、両者はマージされます）。公開RSS/Atomのみ。有料記事・ログイン必須
+ページ・利用規約が不明なスクレイピング対象は追加しないでください。全文取得は行わず、
+フィードの要約（summary）だけを取り込みます。
 
 ```yaml
+# config/sources.yaml
 sources:
-  - name: "official_source_example"
-    url: "https://example.gov/press.rss"
-    type: "rss"
-    trust: 0.9
-    country: "US"
-    language: "en"
+  - id: fed_press
+    name: U.S. Federal Reserve — Press Releases
+    url: "https://www.federalreserve.gov/feeds/press_all.xml"
+    enabled: true
+    format: auto            # auto / rss / atom
+    source_class: primary_official
+    country: US
+    region: North America
+    language: en
+    primary_category: monetary_policy
+    trust_score: 98         # 0-100
+    fetch_interval_minutes: 60
 ```
 
-実際のRSS取得処理は `scripts/run_ingestion.py` の `_fetch_source()` へ実装してください
-（本リポジトリはネットワークアクセスを行わない安全な既定実装のまま同梱しています）。
+初期状態で26ソース（多地域・多カテゴリ、AI/半導体に偏らない構成）を同梱しています。
+ただし各URLの到達性はビルド環境で確認できていないため、**初回のライブ取得の前に
+必ず到達性を確認**してください（不確実なものは `enabled: false` にしてあります）。
 
 ## 実行
 
 ```bash
-python scripts/run_ingestion.py            # 増分取得 + 配信パッケージ生成
-python scripts/run_ingestion.py --dry-run  # 取得のみ（配信パッケージは生成しない）
+# 0) 各enabledソースの到達性だけ確認する（保存しない）。FAIL は enabled: false にする
+python scripts/run_ingestion.py --verify
+
+# 1) 実際に取得→分類→クラスタ→保存→配信Package生成
+python scripts/run_ingestion.py
+
+# 取得・保存まで（配信Packageは作らない）
+python scripts/run_ingestion.py --dry-run
 ```
 
-`sources` が空のままなら新着0件として高速終了し、既存の `published/latest/` は
-上書きされません（安全側）。
+動作の要点:
+
+- **増分取得**: 各ソースの ETag / Last-Modified を Cursor に保存し、次回は条件付きGET。
+  変更が無ければ HTTP 304 で高速終了（記事は保存しない）。
+- **重複排除**: 同じ記事は再保存しない（2回目以降は new=0 / duplicates>0）。
+- **障害の分離**: 1ソースが失敗（403/404/429/500/timeout）しても他は継続。
+  403/404/429 は再試行しない。全ソース失敗時は既存の `published/latest/` を
+  空Packageで上書きしません（保護）。
+- **終了コード**: 0=成功 / 2=degraded（一部失敗だが公開）/ 1=失敗（全失敗で非公開・生成失敗）。
+- **統計**: `data/article_store/statistics/latest_run.json` に各回の統計を保存
+  （Secret/Tokenは出力しません）。
+
+配信物は `published/latest/manifest.json` と `intelligence_package.json.gz` に生成されます。
 
 ## GitHubへ新規リポジトリを作成する手順
 
 1. GitHub上で `takehiro104toshi-cmd/article-intelligence-data-tank` という名前で
-   新規リポジトリを作成する（Private/Public はお好みで）。
-2. 本フォルダをそのリポジトリのルートとして push する:
+   新規リポジトリを作成する。**Public を推奨**（下記の raw URL 配信は Public 前提。
+   取り込むのは公開RSSの見出し・要約・分類などの公開情報のみ。private本文は
+   .gitignore で除外され push されません）。
+2. 本フォルダをそのリポジトリのルートとして push する（ブランチは main）:
    ```bash
    cd article-intelligence-data-tank
    git remote add origin https://github.com/takehiro104toshi-cmd/article-intelligence-data-tank.git
+   git branch -M main
    git push -u origin main
    ```
-3. リポジトリの Settings > Secrets and variables > Actions で、実際のニュース取得に
-   必要なSecret（あれば）を設定する。
-4. Settings > Actions > General で Workflow permissions を
-   "Read and write permissions" にする（`article-tank-update.yml` が
-   `data/article_store` と `published/` をcommit/pushするため）。
-5. `config.yaml` の `sources` へ実際の公開RSS/公式APIのURLを追加する。
-6. 手動実行（Actions タブ > Article Tank Update > Run workflow）で動作確認する。
+3. Settings > Actions > General > Workflow permissions を
+   **"Read and write permissions"** にする（`article-tank-update.yml` が
+   取得結果（シャード/cursor/配信Package）を commit/push するため）。
+4. 手動実行（Actions タブ > **Article Tank Update** > Run workflow）で動作確認する。
+   実行後、リポジトリに `published/latest/manifest.json` と
+   `intelligence_package.json.gz` がコミットされていれば成功。
+
+   ※ 永続化の設計: SQLite索引（バイナリ）は .gitignore で追跡せず、
+   毎回コミット済みシャード（テキスト）から自動再構築します。これにより
+   増分取得・重複排除を保ちつつ repo の肥大化を防ぎます。cursor / shards /
+   配信Package はコミットされます。
 
 ## Market Intelligence System からの接続手順
 

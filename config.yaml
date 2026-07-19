@@ -19,6 +19,7 @@ article_tank:
   max_source_share: 0.25
   max_theme_share: 0.35
   max_event_cluster_articles: 3
+  max_items_per_source: 200          # 1フィードあたり取り込む最大件数（初回の暴発防止・§8）
   market_reaction_first: true
   event_clustering_enabled: true
   bias_monitoring_enabled: true
@@ -39,7 +40,11 @@ publication:
   max_source_health: 100
   package_max_uncompressed_mb: 5
 
-# 実際のニュース取得先（公開RSS/公開API/公式発表のみ）。
+# ニュースソースは config/sources.yaml で管理する（§5）。初回のライブ取得前に
+# `python scripts/run_ingestion.py --verify` で各URLの到達性を確認すること。
+sources_file: "config/sources.yaml"
+
+# 後方互換: ここへ直接ソースを書くこともできる（config/sources.yaml とマージされる）。
 # 例: - { name: "official_source_example", url: "https://example.gov/press.rss", type: "rss",
 #         trust: 0.9, country: "US", language: "en" }
 sources: []

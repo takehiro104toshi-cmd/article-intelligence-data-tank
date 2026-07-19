@@ -1,0 +1,196 @@
+{
+  "run_id": "20260718T170153Z-7a0e92",
+  "started_at": "2026-07-18T17:01:53.929101+00:00",
+  "completed_at": "2026-07-18T17:02:20.421074+00:00",
+  "total_seconds": 26.492,
+  "configured_sources": 24,
+  "enabled_sources": 19,
+  "successful_sources": 17,
+  "unchanged_sources": 0,
+  "failed_sources": 2,
+  "fetched_items": 491,
+  "new_unique_articles": 472,
+  "exact_duplicates": 19,
+  "syndicated_duplicates": 0,
+  "clusters_created": 445,
+  "clusters_updated": 24,
+  "stored_articles": 472,
+  "total_tank_articles": 472,
+  "package_items": 131,
+  "package_size": 14475,
+  "warning_count": 0,
+  "error_count": 2,
+  "sources": [
+    {
+      "source": "U.S. Federal Reserve — Press Releases",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 20,
+      "new": 20,
+      "duplicates": 0,
+      "error": ""
+    },
+    {
+      "source": "Bank of Japan — What's New (English)",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 42,
+      "new": 40,
+      "duplicates": 2,
+      "error": ""
+    },
+    {
+      "source": "U.S. Bureau of Labor Statistics — News Releases",
+      "status": "failed",
+      "http_status": 404,
+      "fetched": 0,
+      "new": 0,
+      "duplicates": 0,
+      "error": "http_404"
+    },
+    {
+      "source": "UK Government — Announcements",
+      "status": "failed",
+      "http_status": 404,
+      "fetched": 0,
+      "new": 0,
+      "duplicates": 0,
+      "error": "http_404"
+    },
+    {
+      "source": "UN News — All",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 30,
+      "new": 30,
+      "duplicates": 0,
+      "error": ""
+    },
+    {
+      "source": "BBC News — Business",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 54,
+      "new": 52,
+      "duplicates": 2,
+      "error": ""
+    },
+    {
+      "source": "BBC News — World",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 30,
+      "new": 28,
+      "duplicates": 2,
+      "error": ""
+    },
+    {
+      "source": "The Guardian — Business",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 40,
+      "new": 40,
+      "duplicates": 0,
+      "error": ""
+    },
+    {
+      "source": "CNBC — Markets",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 30,
+      "new": 30,
+      "duplicates": 0,
+      "error": ""
+    },
+    {
+      "source": "NPR — Business",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 10,
+      "new": 10,
+      "duplicates": 0,
+      "error": ""
+    },
+    {
+      "source": "Al Jazeera — All News",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 25,
+      "new": 25,
+      "duplicates": 0,
+      "error": ""
+    },
+    {
+      "source": "South China Morning Post — News",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 50,
+      "new": 50,
+      "duplicates": 0,
+      "error": ""
+    },
+    {
+      "source": "The Japan Times — News",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 30,
+      "new": 30,
+      "duplicates": 0,
+      "error": ""
+    },
+    {
+      "source": "U.S. EIA — Today in Energy",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 18,
+      "new": 18,
+      "duplicates": 0,
+      "error": ""
+    },
+    {
+      "source": "OilPrice.com — Latest",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 15,
+      "new": 15,
+      "duplicates": 0,
+      "error": ""
+    },
+    {
+      "source": "Defense News — Latest",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 25,
+      "new": 25,
+      "duplicates": 0,
+      "error": ""
+    },
+    {
+      "source": "BBC News — Science & Environment",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 42,
+      "new": 29,
+      "duplicates": 13,
+      "error": ""
+    },
+    {
+      "source": "Ars Technica — All",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 20,
+      "new": 20,
+      "duplicates": 0,
+      "error": ""
+    },
+    {
+      "source": "The Verge — All",
+      "status": "success",
+      "http_status": 200,
+      "fetched": 10,
+      "new": 10,
+      "duplicates": 0,
+      "error": ""
+    }
+  ]
+}

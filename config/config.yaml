@@ -1,0 +1,718 @@
+# market_brief 設定ファイル
+# ここに書かれた銘柄・情報源はすべて公開情報のみを対象とする
+
+watchlist:
+  jp_stocks:
+    - { ticker: "7203.T", name: "トヨタ自動車" }
+    - { ticker: "6758.T", name: "ソニーグループ" }
+    - { ticker: "9984.T", name: "ソフトバンクグループ" }
+    - { ticker: "8306.T", name: "三菱UFJフィナンシャル・グループ" }
+    - { ticker: "6501.T", name: "日立製作所" }
+    - { ticker: "8035.T", name: "東京エレクトロン" }
+    - { ticker: "6098.T", name: "リクルートホールディングス" }
+    - { ticker: "7012.T", name: "川崎重工業" }
+    - { ticker: "6902.T", name: "デンソー" }
+    - { ticker: "6594.T", name: "ニデック" }
+    - { ticker: "5801.T", name: "古河電工" }
+    - { ticker: "5802.T", name: "住友電工" }
+    - { ticker: "6752.T", name: "パナソニックHD" }
+    - { ticker: "4188.T", name: "三菱ケミカルグループ" }
+    - { ticker: "3407.T", name: "旭化成" }
+    - { ticker: "1944.T", name: "きんでん" }
+    - { ticker: "9432.T", name: "日本電信電話" }
+  us_stocks:
+    - { ticker: "AAPL", name: "Apple" }
+    - { ticker: "MSFT", name: "Microsoft" }
+    - { ticker: "NVDA", name: "NVIDIA" }
+    - { ticker: "TSLA", name: "Tesla" }
+    - { ticker: "AMZN", name: "Amazon" }
+    - { ticker: "GOOGL", name: "Alphabet" }
+    - { ticker: "META", name: "Meta Platforms" }
+    - { ticker: "PLTR", name: "Palantir" }
+    - { ticker: "ARM", name: "Arm Holdings" }
+    - { ticker: "TSM", name: "TSMC" }
+    - { ticker: "ASML", name: "ASML" }
+    - { ticker: "LRCX", name: "Lam Research" }
+    - { ticker: "KLAC", name: "KLA" }
+
+# 主要指数（symbol: yfinance用ティッカー, stooq_symbol: Stooqでのフォールバック用）
+indices:
+  - { symbol: "^N225", name: "日経平均株価", stooq_symbol: "^nkx" }
+  - { symbol: "1306.T", name: "TOPIX連動型ETF(参考)", stooq_symbol: "^tpx" }
+  - { symbol: "^DJI", name: "NYダウ", stooq_symbol: "^dji" }
+  - { symbol: "^GSPC", name: "S&P500", stooq_symbol: "^spx" }
+  - { symbol: "^IXIC", name: "ナスダック総合", stooq_symbol: "^ndq" }
+  - { symbol: "^VIX", name: "VIX指数（恐怖指数）", stooq_symbol: "^vix" }
+  # SOX（フィラデルフィア半導体指数）。Today's Dashboard向け（v4追加）。
+  # Stooqでの正確な代替シンボルが未確認のため、yfinanceのみを利用する
+  # （取得失敗時は他の指標同様「取得不可」と表示され、レポート生成は継続する）。
+  - { symbol: "^SOX", name: "SOX指数（フィラデルフィア半導体指数）" }
+  # ドル指数（DXY）。Market Regime Engine（v3.2）向け。yfinanceのみ利用
+  # （取得失敗時は他指標同様「取得不可」となり、地合い判定は残りの指標で継続する）。
+  - { symbol: "DX-Y.NYB", name: "ドル指数（DXY）" }
+
+# 為替
+forex:
+  - { symbol: "JPY=X", name: "米ドル/円", stooq_symbol: "usdjpy" }
+  - { symbol: "EURJPY=X", name: "ユーロ/円", stooq_symbol: "eurjpy" }
+  - { symbol: "EURUSD=X", name: "ユーロ/米ドル", stooq_symbol: "eurusd" }
+
+# 金利
+rates:
+  - { symbol: "^TNX", name: "米10年国債利回り", stooq_symbol: "10usy.b" }
+
+# コモディティ（Today's Dashboard向けにBitcoinも同じ枠組みで取得、v4追加）
+commodities:
+  - { symbol: "CL=F", name: "WTI原油先物", stooq_symbol: "cl.f" }
+  - { symbol: "GC=F", name: "金先物（ゴールド）", stooq_symbol: "gc.f" }
+  - { symbol: "BTC-USD", name: "ビットコイン" }
+
+# 公開ニュースRSS（見出し・リンクのみ取得し、本文は取得しない）
+news_sources:
+  - { name: "Yahoo!ニュース 経済", url: "https://news.yahoo.co.jp/rss/topics/business.xml" }
+  - { name: "ロイター(Yahoo!ニュース経由)", url: "https://news.yahoo.co.jp/rss/media/reut/all.xml" }
+  - { name: "NHKニュース 経済", url: "https://www3.nhk.or.jp/rss/news/cat5.xml" }
+
+# 相場以外の一般ニュース見出し（「今日の雑談」向け）。本文は取得せず見出し・リンクのみ利用。
+general_news_sources:
+  - { name: "Yahoo!ニュース トピックス", url: "https://news.yahoo.co.jp/rss/topics/top-picks.xml" }
+  - { name: "NHKニュース 総合", url: "https://www3.nhk.or.jp/rss/news/cat0.xml" }
+
+# 情報源別の信頼度スコア（0.0〜1.0）。同じ内容のニュースが複数の情報源から
+# 配信された場合、重複除去（dedupe_headlines）で信頼度の高い方を残すために使う。
+# 未掲載の情報源は既定値（0.5）が使われる。
+source_reliability:
+  "Yahoo!ニュース 経済": 0.6
+  "ロイター(Yahoo!ニュース経由)": 0.75
+  "NHKニュース 経済": 0.85
+  "Yahoo!ニュース トピックス": 0.5
+  "NHKニュース 総合": 0.85
+  # v2.9 Source Expansion Engine（③）: 各collectorのRELIABILITYと重複するが、
+  # config.yamlだけで一覧・上書きできるようにここにも明記する。
+  "Federal Reserve Press Releases": 0.97
+  "SEC Press Releases": 0.97
+  "BLS 最新統計": 0.97
+  "EIA Today in Energy": 0.95
+  "ECB Press Releases": 0.97
+  "CoinDesk": 0.6
+  "CoinTelegraph": 0.6
+  "Yahoo Finance US": 0.6
+
+# 日経・Bloomberg・Reutersのベストエフォート見出し取得。
+# 省略した場合は各collector（src/collectors/nikkei.py 等）のデフォルトURLを使う。
+# ここで上書きすると、config.yamlだけでURLを差し替えられる（例: テストで
+# 到達不能なローカルアドレスに差し替える、実運用で確認済みの別URLに変更する等）。
+# nikkei_sources:
+#   - { name: "日本経済新聞 電子版(見出し)", url: "https://www.nikkei.com/rss/index.rdf" }
+# bloomberg_sources:
+#   - { name: "Bloomberg Markets(見出し)", url: "https://feeds.bloomberg.com/markets/news.rss" }
+# reuters_sources:
+#   - { name: "Reuters Business(見出し)", url: "https://www.reutersagency.com/feed/?best-topics=business-finance" }
+# cnbc_sources:
+#   - { name: "CNBC Top News", url: "https://www.cnbc.com/id/100003114/device/rss/rss.html" }
+# wsj_sources:
+#   - { name: "WSJ Markets", url: "https://feeds.a.dj.com/rss/RSSMarketsMain.xml" }
+# marketwatch_sources:
+#   - { name: "MarketWatch Top Stories", url: "https://feeds.marketwatch.com/marketwatch/topstories/" }
+# investing_sources:
+#   - { name: "Investing.com News", url: "https://www.investing.com/rss/news.rss" }
+# boj_sources:
+#   - { name: "日本銀行 新着情報", url: "https://www.boj.or.jp/rss/whatsnew.rdf" }
+# mof_sources:
+#   - { name: "財務省 新着情報", url: "https://www.mof.go.jp/rss/whatsnew.rdf" }
+
+# v2.9 Source Expansion Engine（③）: 公式・高信頼ソース・海外マーケットソースの
+# ベストエフォート取得。省略時は各collector（src/collectors/fed.py等）の
+# デフォルトURLを使う。ここで上書きすると、config.yamlだけでURLを差し替えられる。
+# fed_sources:
+#   - { name: "Federal Reserve Press Releases", url: "https://www.federalreserve.gov/feeds/press_all.xml" }
+# sec_sources:
+#   - { name: "SEC Press Releases", url: "https://www.sec.gov/news/pressreleases.rss" }
+# us_gov_stats_sources:
+#   - { name: "BLS 最新統計", url: "https://www.bls.gov/feed/bls_latest.rss" }
+#   - { name: "EIA Today in Energy", url: "https://www.eia.gov/rss/todayinenergy.xml" }
+# ecb_sources:
+#   - { name: "ECB Press Releases", url: "https://www.ecb.europa.eu/rss/press.xml" }
+# crypto_news_sources:
+#   - { name: "CoinDesk", url: "https://www.coindesk.com/arc/outboundfeeds/rss/" }
+#   - { name: "CoinTelegraph", url: "https://cointelegraph.com/rss" }
+# yahoo_finance_us_sources:
+#   - { name: "Yahoo Finance US", url: "https://finance.yahoo.com/news/rssindex" }
+
+# v2.9 Source Expansion Engine（③）: 情報源の実装状況の分類。
+# ユーザー提示の追加候補ソースについて、実装可否を明示する
+# （詳細な理由はREADME「Source Expansion（情報源の追加方針）」を参照）。
+#   implemented   : 上記collectorとして実装済み（公開RSSのみ使用）
+#   reference_only: 公開情報だが自動取得は見送り、参照リンクとして案内のみ
+#   skipped       : 公開RSSが未確認／利用規約リスク／本文取得やスクレイピングに
+#                   なるため、今回は見送り（将来、公式RSSが確認できれば追加検討）
+source_classification:
+  implemented:
+    - "Federal Reserve / FOMC（fed_sources）"
+    - "SEC（sec_sources）"
+    - "BLS（us_gov_stats_sources）"
+    - "EIA（us_gov_stats_sources）"
+    - "ECB（ecb_sources）"
+    - "CoinDesk（crypto_news_sources）"
+    - "CoinTelegraph（crypto_news_sources）"
+    - "Yahoo Finance US（yahoo_finance_us_sources）"
+  reference_only:
+    - "US Treasury（安定した公開RSSが未確認のため自動取得はせず参照リンクのみ）"
+    - "Bank of England（RSS構成の確証が低いため自動取得はせず参照リンクのみ）"
+    - "IMF / World Bank / OECD（統計ポータルであり定型RSSでの検知に不向き）"
+    - "Nasdaq / NYSE 公式（RSS形式が不安定なため今回は見送り、参照リンクのみ）"
+    - "OpenAI Blog / Google AI Blog / Microsoft AI Blog / Meta AI Blog / AWS Blog / Oracle Newsroom（安定した公開RSSが未確認）"
+    - "NVIDIA / AMD / Intel / TSMC / ASML / Micron / Samsung / SK hynix Newsroom（公式ニュースルームに定型RSSがなく、スクレイピングが必要になるため）"
+  skipped:
+    - "Seeking Alpha RSS（利用規約・Bot対策のリスクが不明確なため見送り）"
+    - "Benzinga RSS（利用規約・Bot対策のリスクが不明確なため見送り）"
+    - "SEMI / TrendForce（公開RSSが未確認。TrendForceは有料レポートが中心）"
+    - "Baltic Exchange / Baltic Dry Index（公開の無償取得手段が未確認）"
+    - "Coinbase Blog（安定した公開RSSが未確認）"
+
+# EDINET書類一覧APIのエンドポイント上書き設定（省略時はsrc/collectors/edinet.pyの既定値を使用）。
+# edinet:
+#   documents_url: "https://disclosure.edinet-fsa.go.jp/api/v2/documents.json"
+
+# FRED公開CSVエンドポイントの上書き設定（省略時はsrc/collectors/macro.pyの既定値を使用）。
+# fred:
+#   csv_url_template: "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
+#   series:
+#     - { id: "T10Y2Y", name: "米10年-2年金利差" }
+#     - { id: "UNRATE", name: "米失業率" }
+
+# TDnet（適時開示情報閲覧サービス）※完全に公開されている一覧ページ
+tdnet:
+  list_url_template: "https://www.release.tdnet.co.jp/inbs/I_list_001_{date}.html"
+  max_items: 20
+  lookback_days: 3
+
+# 注目テーマ抽出用キーワード（ニュース見出しに含まれるかで判定）
+themes:
+  - "半導体"
+  - "生成AI"
+  - "AI"
+  - "円安"
+  - "円高"
+  - "インバウンド"
+  - "防衛"
+  - "資源"
+  - "電力"
+  - "EV"
+  - "インフレ"
+  - "利上げ"
+  - "利下げ"
+  - "電線"
+  - "データセンター"
+  - "商社"
+  - "金融"
+  - "化学"
+
+# 注目業界の分類
+# keywords: ニュース見出しの判定キーワード
+# related_tickers: watchlistのティッカーのうち、この業種に関連する銘柄（注目銘柄セクションの中長期材料で参照）
+sectors:
+  # 半導体・電子部品: AI/データセンター向けGPU・HBM・製造装置・センサーなど、
+  # AI設備投資の最も直接的な恩恵を受ける業種（大型〜中型株まで拡張、v1.8）。
+  半導体・電子部品:
+    keywords: ["半導体", "電子部品", "東京エレクトロン", "半導体製造装置", "ニデック", "モーター"]
+    related_tickers: ["8035.T", "6594.T", "6758.T", "NVDA", "TSM", "ASML", "LRCX", "KLAC", "ARM"]
+  自動車:
+    keywords: ["自動車", "EV", "トヨタ", "日産", "ホンダ", "デンソー"]
+    related_tickers: ["7203.T", "6902.T", "TSLA"]
+  重工業・防衛:
+    keywords: ["防衛", "重工業", "川崎重工業", "航空機", "造船"]
+    related_tickers: ["7012.T"]
+  金融:
+    keywords: ["日銀", "銀行", "金利", "利上げ", "利下げ"]
+    related_tickers: ["8306.T"]
+  資源・エネルギー:
+    keywords: ["原油", "資源", "エネルギー", "LNG"]
+    related_tickers: []
+  # 情報通信・生成AI: 生成AIの活用・投資主体（クラウド／通信キャリア）。
+  # データセンターを自ら運営・投資する側であり、AI設備投資の直接の主体
+  # として恩恵を受ける（v1.8でNTT・Microsoft・Amazonを追加、v1.9で
+  # Apple・リクルートホールディングスをスマートフォン／SaaS・人材の
+  # 観点で追加）。
+  情報通信・生成AI:
+    keywords: ["生成AI", "AI", "通信", "ソフトバンク", "プラットフォーム", "クラウド", "SaaS", "スマートフォン", "人材"]
+    related_tickers: ["9984.T", "9432.T", "6098.T", "MSFT", "AMZN", "GOOGL", "META", "PLTR", "AAPL"]
+  # 電機・電線・素材: データセンター向け電線・部材・冷却関連部品を手掛ける
+  # サプライチェーン（v1.8で日立製作所を重電・電力設備の観点で追加）。
+  電機・電線・素材:
+    keywords: ["パナソニック", "電線", "古河電工", "住友電工", "三菱ケミカル", "旭化成", "化学", "素材", "データセンター", "日立", "重電", "変圧器"]
+    related_tickers: ["6752.T", "5801.T", "5802.T", "4188.T", "3407.T", "6501.T"]
+  # 電力・インフラ: データセンター向け電力設備・送配電・変圧器・電気工事
+  # （建設）を手掛ける業種。きんでんは電気工事（データセンター建設）、
+  # 日立製作所は重電・送配電設備の両観点で該当する（v1.8で拡張）。
+  電力・インフラ:
+    keywords: ["電力", "インフラ", "きんでん", "送配電", "データセンター", "変圧器", "電気工事", "建設"]
+    related_tickers: ["1944.T", "6501.T"]
+
+# 継続性の高い（構造的・政策的な背景を持ち、単発の材料出尽くしで終わりにくい）テーマ。
+# strategist_engine.py の「継続性」「今後数週間重要か」の評価軸で、
+# 単発ニュースより高いスコアを与えるために使う。
+durable_themes:
+  - "半導体"
+  - "生成AI"
+  - "AI"
+  - "防衛"
+  - "データセンター"
+  - "資源"
+  - "電力"
+
+# ニュースを個別業種・関連銘柄へ変換するための「因果チェーン」ルール。
+# 「羅針盤」レポート等から学習した、ストラテジストの一般的な思考プロセス
+# （例: 原油安→航空/運輸のコスト低下→関連銘柄への追い風）を
+# 汎用的なルールとして一般化したものであり、特定資料の文章の引用ではない。
+# trigger_keywords: ニュース見出しに含まれるとルール発動
+# beneficiary_sectors / negative_sectors: sectors: のキー名を指定
+#   （related_tickers はsectors設定から解決する）
+# durable: True の場合、継続性・今後数週間重要か の評価が上がる
+causal_rules:
+  - trigger_keywords: ["原油高", "原油上昇", "原油急騰", "WTI高"]
+    theme: "資源価格"
+    beneficiary_sectors: ["資源・エネルギー"]
+    negative_sectors: ["自動車", "情報通信・生成AI"]
+    durable: false
+    note: "原油価格の上昇は資源関連には追い風、輸送・製造コストの増加を通じて他業種には逆風となりやすい"
+  - trigger_keywords: ["原油安", "原油下落", "原油急落", "WTI安"]
+    theme: "資源価格"
+    beneficiary_sectors: ["自動車"]
+    negative_sectors: ["資源・エネルギー"]
+    durable: false
+    note: "原油価格の下落は燃料・輸送コストの低下を通じて運輸・製造関連には追い風となりやすい"
+  # AI関連の設備投資は、半導体（GPU・HBM等）だけでなく、データセンターを
+  # 自ら運営する情報通信企業、電力・変圧器・電気工事（建設）、電線・冷却
+  # 部材まで、サプライチェーン全体に波及しやすい（v1.8でbeneficiary_sectors
+  # を拡張し、経済的な因果関係でつながる業種をより広く含めた）。
+  - trigger_keywords: ["半導体投資拡大", "AI投資拡大", "設備投資拡大", "データセンター投資", "データセンター建設", "電力設備投資"]
+    theme: "AI・半導体設備投資"
+    beneficiary_sectors: ["半導体・電子部品", "電機・電線・素材", "電力・インフラ", "情報通信・生成AI"]
+    negative_sectors: []
+    durable: true
+    note: "AI関連の設備投資拡大は、半導体・データセンター運営主体・電力設備（変圧器・電気工事）・電線・冷却部材など、周辺サプライチェーン全体へ波及しやすい"
+  - trigger_keywords: ["メモリ価格高騰", "メモリ不足", "部材不足", "発売延期"]
+    theme: "AI投資拡大の負の側面"
+    beneficiary_sectors: []
+    negative_sectors: ["情報通信・生成AI"]
+    durable: false
+    note: "部材価格の高騰や供給制約は、最終製品を手掛ける川下メーカーには一時的な逆風となる可能性がある"
+  - trigger_keywords: ["防衛費", "防衛予算", "防衛装備", "防衛費増額"]
+    theme: "防衛"
+    beneficiary_sectors: ["重工業・防衛"]
+    negative_sectors: []
+    durable: true
+    note: "防衛予算の拡大方針は、防衛関連の受注環境改善につながりやすい"
+  - trigger_keywords: ["利上げ", "タカ派", "追加利上げ観測", "金融引き締め"]
+    theme: "金融政策"
+    beneficiary_sectors: ["金融"]
+    negative_sectors: ["情報通信・生成AI"]
+    durable: false
+    note: "金利上昇は金融機関の利ざや改善に追い風となる一方、グロース株には割引率上昇を通じた逆風となりやすい"
+  - trigger_keywords: ["利下げ", "ハト派", "金融緩和", "緩和的"]
+    theme: "金融政策"
+    beneficiary_sectors: ["情報通信・生成AI"]
+    negative_sectors: ["金融"]
+    durable: false
+    note: "金利低下はグロース株のバリュエーションには追い風となる一方、金融機関の利ざやには逆風となりやすい"
+  - trigger_keywords: ["円安"]
+    theme: "為替"
+    beneficiary_sectors: ["自動車", "重工業・防衛"]
+    negative_sectors: []
+    durable: false
+    note: "円安方向への動きは輸出関連の採算改善期待につながりやすい"
+  - trigger_keywords: ["円高"]
+    theme: "為替"
+    beneficiary_sectors: []
+    negative_sectors: ["自動車", "重工業・防衛"]
+    durable: false
+    note: "円高方向への動きは輸出関連の採算悪化懸念につながりやすい"
+  # v1.9: Watchlist Intelligenceの一致率向上のため、macro_themesを拡張
+  # した「自動車」「EV」「蓄電池」「人材」「SaaS」「クラウド」「スマート
+  # フォン」「広告」「決済」「建設」「住宅」「旅行」「インバウンド」
+  # 「物流」の因果ルールを追加。既存の「金融」「金利」「為替」は、
+  # 上記の既存ルール（金融政策・為替）をそのまま再利用する（テーマ名・
+  # トリガーキーワードが一致するため新規ルールは不要）。
+  - trigger_keywords: ["自動車販売", "新型車", "自動車生産", "自動車市場"]
+    theme: "自動車市況"
+    beneficiary_sectors: ["自動車"]
+    negative_sectors: []
+    durable: true
+    note: "自動車の生産・販売動向は、完成車・部品メーカーの業績に直結しやすい"
+  - trigger_keywords: ["EV普及", "電気自動車", "車載電池", "蓄電池投資"]
+    theme: "EV・蓄電池"
+    beneficiary_sectors: ["自動車", "電機・電線・素材", "資源・エネルギー"]
+    negative_sectors: []
+    durable: true
+    note: "EV普及は車載電池・関連部材・電池材料（資源）への需要拡大につながりやすい"
+  - trigger_keywords: ["人材紹介", "採用市場", "SaaS導入"]
+    theme: "人材・SaaS"
+    beneficiary_sectors: ["情報通信・生成AI"]
+    negative_sectors: []
+    durable: true
+    note: "SaaS・人材関連サービスの拡大は、プラットフォーム提供企業の収益機会につながりやすい"
+  - trigger_keywords: ["クラウド需要", "データセンター拡張", "スマートフォン販売", "広告収益"]
+    theme: "クラウド・スマートフォン"
+    beneficiary_sectors: ["情報通信・生成AI", "半導体・電子部品"]
+    negative_sectors: []
+    durable: true
+    note: "クラウド・スマートフォン関連需要の拡大は、プラットフォーム企業や半導体需要への波及につながりやすい"
+  - trigger_keywords: ["決済", "キャッシュレス", "決済インフラ"]
+    theme: "決済"
+    beneficiary_sectors: ["金融", "情報通信・生成AI"]
+    negative_sectors: []
+    durable: true
+    note: "キャッシュレス決済の普及は、金融機関・プラットフォーム企業双方に事業機会をもたらしやすい"
+  - trigger_keywords: ["建設投資", "住宅着工", "電気工事", "インフラ整備"]
+    theme: "建設・住宅"
+    beneficiary_sectors: ["電力・インフラ"]
+    negative_sectors: []
+    durable: true
+    note: "建設・住宅関連の投資拡大は、電気工事・設備工事を手掛ける企業の受注環境改善につながりやすい"
+  - trigger_keywords: ["インバウンド", "訪日観光客", "旅行需要", "観光"]
+    theme: "旅行・インバウンド"
+    beneficiary_sectors: []
+    negative_sectors: []
+    durable: false
+    note: "インバウンド需要の拡大は旅行・宿泊・小売など関連業種への追い風となりやすいが、本watchlistには直接該当する銘柄がありません"
+  - trigger_keywords: ["個人消費", "消費拡大", "消費者心理"]
+    theme: "消費"
+    beneficiary_sectors: ["自動車"]
+    negative_sectors: []
+    durable: false
+    note: "個人消費の拡大は、自動車など耐久消費財を含む幅広い消費関連企業への追い風となりやすい"
+  - trigger_keywords: ["物流需要", "配送網拡大", "倉庫投資"]
+    theme: "物流"
+    beneficiary_sectors: ["重工業・防衛"]
+    negative_sectors: []
+    durable: true
+    note: "物流インフラ需要の拡大は、船舶・鉄道車両など輸送機器を手掛ける重工業関連企業の受注環境改善につながりやすい"
+
+# 「Future Intelligence Engine」（世界の構造変化テーマの定性分析）向けの
+# 長期テーマ一覧。label: テーマ名、keywords: ニュース見出しの判定キーワード
+# （省略時はlabelのみで判定）。
+# 具体的な残り年数・市場規模・補助金額等は生成せず、本日の関連見出し件数と
+# durable_themes・causal_rulesへの該当有無から、定性的な★評価・フェーズ・
+# 継続性ラベルのみを機械的に導出する（src/analysis/future_intelligence.py）。
+macro_themes:
+  - { label: "AI", keywords: ["AI", "生成AI", "人工知能"] }
+  - { label: "半導体", keywords: ["半導体", "半導体製造装置"] }
+  - { label: "電力", keywords: ["電力", "送配電", "発電"] }
+  - { label: "GX", keywords: ["GX", "脱炭素", "カーボンニュートラル"] }
+  - { label: "DX", keywords: ["DX", "デジタル化", "デジタルトランスフォーメーション"] }
+  - { label: "防衛", keywords: ["防衛", "防衛費", "防衛装備"] }
+  - { label: "宇宙", keywords: ["宇宙", "衛星", "ロケット"] }
+  - { label: "量子", keywords: ["量子", "量子コンピュータ"] }
+  - { label: "核融合", keywords: ["核融合", "フュージョン"] }
+  - { label: "ロボット", keywords: ["ロボット", "自動化", "省人化"] }
+  - { label: "医療", keywords: ["医療", "創薬", "医薬品"] }
+  - { label: "バイオ", keywords: ["バイオ", "バイオテクノロジー"] }
+  - { label: "サイバーセキュリティ", keywords: ["サイバーセキュリティ", "サイバー攻撃", "情報セキュリティ"] }
+  - { label: "水インフラ", keywords: ["水インフラ", "上下水道", "水資源"] }
+  - { label: "物流", keywords: ["物流", "倉庫", "配送"] }
+  - { label: "資源", keywords: ["資源", "レアアース", "レアメタル"] }
+  - { label: "食料", keywords: ["食料", "食料安全保障", "農業"] }
+  - { label: "人口減少", keywords: ["人口減少", "少子化"] }
+  - { label: "高齢化", keywords: ["高齢化", "介護"] }
+  - { label: "自動運転", keywords: ["自動運転", "自動運転車"] }
+  # v1.9: Watchlist Intelligenceの一致率向上のため追加。金融／金利／為替は
+  # 既存のcausal_rules（金融政策・為替ルール）をキーワードの重なりで
+  # そのまま再利用する（新規ルールは追加していない）。
+  - { label: "自動車", keywords: ["自動車", "自動車販売", "新型車"] }
+  - { label: "EV", keywords: ["EV", "電気自動車"] }
+  - { label: "蓄電池", keywords: ["蓄電池", "バッテリー", "車載電池"] }
+  - { label: "金融", keywords: ["金融", "銀行"] }
+  - { label: "金利", keywords: ["金利", "利上げ", "利下げ"] }
+  - { label: "為替", keywords: ["為替", "円安", "円高"] }
+  - { label: "消費", keywords: ["消費", "個人消費"] }
+  - { label: "人材", keywords: ["人材", "人材紹介", "採用市場"] }
+  - { label: "広告", keywords: ["広告", "広告収益"] }
+  - { label: "SaaS", keywords: ["SaaS"] }
+  - { label: "スマートフォン", keywords: ["スマートフォン", "スマホ"] }
+  - { label: "クラウド", keywords: ["クラウド", "クラウド需要"] }
+  - { label: "決済", keywords: ["決済", "キャッシュレス"] }
+  - { label: "旅行", keywords: ["旅行", "旅行需要"] }
+  - { label: "住宅", keywords: ["住宅", "住宅着工"] }
+  - { label: "建設", keywords: ["建設", "建設投資"] }
+  - { label: "インバウンド", keywords: ["インバウンド", "訪日観光客"] }
+
+# 「Future Intelligence Engine」の「関連テーマ」表示向け、テーマ同士の
+# 対応付け（人手による参考情報。AIによる生成・推定は行わない）。
+# 経済的な因果関係（例: AIの拡大→データセンター向け電力需要増→電力設備・
+# 送配電投資、半導体需要拡大→資源需要）を優先し、単純な業種分類の並びでは
+# 表示しない。キーは macro_themes の label と一致させる（一致しない値は
+# 表示されない）。v1.8で追加。
+theme_relations:
+  AI: ["半導体", "電力", "サイバーセキュリティ", "自動運転", "量子", "クラウド"]
+  半導体: ["AI", "電力", "資源", "自動運転"]
+  電力: ["AI", "GX", "資源", "核融合", "EV", "クラウド"]
+  GX: ["電力", "資源", "核融合"]
+  DX: ["AI", "サイバーセキュリティ", "物流", "SaaS"]
+  防衛: ["宇宙", "サイバーセキュリティ", "資源"]
+  宇宙: ["防衛", "量子", "サイバーセキュリティ"]
+  量子: ["AI", "半導体", "サイバーセキュリティ"]
+  核融合: ["電力", "GX", "資源"]
+  ロボット: ["AI", "自動運転", "物流"]
+  医療: ["バイオ", "高齢化", "人口減少"]
+  バイオ: ["医療", "食料"]
+  サイバーセキュリティ: ["AI", "DX", "防衛"]
+  水インフラ: ["食料", "資源"]
+  物流: ["自動運転", "DX", "ロボット"]
+  資源: ["電力", "GX", "半導体", "EV", "蓄電池"]
+  食料: ["水インフラ", "人口減少", "バイオ"]
+  人口減少: ["高齢化", "ロボット", "医療"]
+  高齢化: ["医療", "人口減少", "ロボット"]
+  自動運転: ["AI", "半導体", "物流", "EV"]
+  # v1.9で追加。単純な業種分類ではなく、投資テーマとしての経済的な
+  # 因果関係（例: 自動車→EV→蓄電池→半導体→AI、金利→金融→為替、
+  # インバウンド→旅行→消費）を優先して対応付ける。
+  自動車: ["EV", "為替", "半導体", "消費"]
+  EV: ["自動車", "蓄電池", "半導体", "電力"]
+  蓄電池: ["EV", "資源", "電力"]
+  金融: ["金利", "為替", "決済"]
+  金利: ["金融", "為替", "住宅"]
+  為替: ["自動車", "金融", "半導体"]
+  消費: ["自動車", "インバウンド"]
+  人材: ["SaaS", "DX"]
+  広告: ["SaaS", "AI"]
+  SaaS: ["人材", "DX", "クラウド"]
+  スマートフォン: ["AI", "クラウド", "半導体"]
+  クラウド: ["AI", "スマートフォン", "電力"]
+  決済: ["金融", "SaaS"]
+  旅行: ["インバウンド", "消費"]
+  住宅: ["建設", "金利"]
+  建設: ["住宅", "電力"]
+  インバウンド: ["旅行", "消費"]
+
+# 「Future Intelligence Engine」の「テーマ成熟度メモ」向け、手動登録の参考情報。
+# AIは市場規模・普及率・競争環境・参入障壁・リスクを生成・推定しない。
+# ここに書いた内容をそのまま表示するだけで、未登録のテーマ・項目は
+# すべて「未登録」と表示される。キーは macro_themes の label と一致させる。
+# 記入例（コメントアウトしています。実データの裏付けがある場合のみ、
+# コメントを外してご自身の分析内容に置き換えて登録してください）:
+# theme_maturity_notes:
+#   AI:
+#     market_stage: "急成長期"
+#     market_size_note: "データセンター投資と生成AI活用拡大が追い風"
+#     adoption_note: "企業導入は拡大中だが、収益化は選別局面"
+#     competition_note: "米大手テック企業を中心に競争が激化"
+#     barrier_note: "半導体・データ・人材・電力が参入障壁"
+#     risk_note: "投資過熱、規制動向、電力供給制約"
+theme_maturity_notes: {}
+
+# 「Future Intelligence Engine」の「国家戦略メモ」向け、手動登録の参考情報。
+# AIは補助金額・政策内容・規制内容を生成・推定しない。ここに書いた内容を
+# そのまま表示するだけで、未登録の国・地域・項目はすべて「未登録」と表示
+# される。対象は日本／米国／中国／EU／インド／中東の6地域固定。
+# 記入例（コメントアウトしています。実データの裏付けがある場合のみ、
+# コメントを外してご自身の分析内容に置き換えて登録してください）:
+# national_strategy_notes:
+#   日本:
+#     focus_areas: ["AI", "半導体", "防衛", "GX"]
+#     policy_note: "官民投資・経済安全保障・省力化投資が注目される"
+#     regulation_note: "規制緩和と安全保障管理の両面に注意"
+#     market_impact_note: "半導体、電力、防衛、省力化関連に波及しやすい"
+national_strategy_notes: {}
+
+# 「今日見るべき指標」セクション向けの節目ライン設定。
+# name は indices/forex/rates/commodities の name と一致させる。
+# lines: 節目として表示する値（現在値に最も近いラインを自動選択）
+# above_note / below_note: 現在値がラインを上回っている/下回っている場合の一言
+key_levels:
+  - name: "米ドル/円"
+    lines: [150, 155, 160]
+    above_note: "円安が進行しやすく、輸出関連株には追い風、輸入コストには逆風となりやすい水準です。"
+    below_note: "円高方向への転換が意識されやすく、輸出関連株には逆風となりやすい水準です。"
+  - name: "VIX指数（恐怖指数）"
+    lines: [20, 25, 30]
+    above_note: "市場のリスク回避姿勢が強まりやすい水準です。"
+    below_note: "落ち着いた相場地合いが意識されやすい水準です。"
+  - name: "米10年国債利回り"
+    lines: [4.0, 4.5, 5.0]
+    above_note: "金利上昇が株式のバリュエーションの重荷として意識されやすい水準です。"
+    below_note: "金利低下が株式には追い風として意識されやすい水準です。"
+  - name: "WTI原油先物"
+    lines: [70, 80, 90]
+    above_note: "インフレ再燃への警戒が意識されやすい水準です。"
+    below_note: "資源関連株には逆風、消費関連株には追い風が意識されやすい水準です。"
+  - name: "金先物（ゴールド）"
+    lines: [2200, 2400, 2600]
+    above_note: "安全資産への資金シフトが意識されやすい水準です。"
+    below_note: "リスク選好局面への回帰が意識されやすい水準です。"
+
+# マクロイベントカレンダー（FOMC・日銀会合など、公開されているスケジュールを手動で管理）。
+# 信頼できる公開のカレンダーAPI/RSSが確認できていないため、スクレイピングはせず
+# ユーザーが把握している公開情報を手動で登録する運用としている。
+# 「今日のイベント」セクションの今日／今週／今月の分類に利用される。
+# label の書き方の例（v4）: 日銀金融政策決定会合・FOMC・米CPI（消費者物価指数）・
+# 米PPI（生産者物価指数）・米雇用統計・SQ（特別清算指数算出日）・IPO・決算発表 等。
+# 例:
+# macro_events:
+#   - { date: "2026-07-30", label: "FOMC（米連邦公開市場委員会）政策金利発表" }
+#   - { date: "2026-07-31", label: "日銀金融政策決定会合" }
+#   - { date: "2026-08-01", label: "米雇用統計発表" }
+#   - { date: "2026-08-08", label: "米CPI（消費者物価指数）発表" }
+#   - { date: "2026-08-09", label: "米PPI（生産者物価指数）発表" }
+#   - { date: "2026-08-14", label: "SQ（特別清算指数算出日）" }
+# v2.7: 任意で time（日本時間 "HH:MM"）を追加すると、「今週の重要イベント・
+# 経済指標」（Weekly Event Impact Calendar）で「あと◯日 ◯時間」まで表示される。
+# 例: - { date: "2026-08-08", label: "米CPI（消費者物価指数）発表", time: "21:30" }
+macro_events: []
+
+output:
+  dir: "output"
+  timezone: "Asia/Tokyo"
+  headlines_per_source: 8
+  # GitHub Pagesの公開URL（通知本文に載せる）。
+  # 空欄の場合、GitHub Actions実行時は環境変数 GITHUB_REPOSITORY から自動的に
+  # "https://<owner>.github.io/<repo>/" を組み立てる。ローカル実行時などで
+  # 明示したい場合はここに記載するか、環境変数 PAGES_URL を設定する。
+  pages_url: ""
+  # HTMLレポート上部の「最新レポートを生成する」ボタンから飛ぶ、該当workflow
+  # 実行画面の直リンク。v3.3（改善②）: ここに設定した値を最優先で使う
+  # （空欄の場合のみ、GitHub Actions実行時に環境変数 GITHUB_REPOSITORY から
+  # "https://github.com/<owner>/<repo>/actions/workflows/daily-market-brief.yml"
+  # を自動推定する）。ローカル実行時などで上書きしたい場合は環境変数
+  # ACTIONS_URL を設定する。いずれも無い場合はボタンの代わりに「設定未完了」を表示する。
+  actions_url: "https://github.com/takehiro104toshi-cmd/daily-market-brief/actions/workflows/daily-market-brief.yml"
+
+# ===== v4.x Six Daily Report Schedule（1日6回・信頼性運用） =====
+# JST基準で1日6回レポートを自動生成する。GitHub ActionsのcronはUTCだが、
+# レポート日付・保存日付・slot判定はすべてPython側でAsia/Tokyoへ変換して行う
+# （cronの時刻からJST日付を推測しない）。--report-slot を指定しない従来実行は
+# このスケジュール管理に一切関与しない（完全な後方互換）。
+report_schedule:
+  enabled: true
+  timezone: "Asia/Tokyo"
+  run_on_weekends: true
+  run_on_japanese_holidays: true      # 将来拡張用（今回は祝日判定ロジックは導入しない）
+  archive_reports: true               # false で履歴HTMLを保存せず最新HTMLのみ更新
+  recovery_enabled: true
+  max_retry_count: 2                  # workflow/Python側の最大再試行回数
+  retry_wait_seconds: 120             # 再試行の待機秒数
+  stale_after_minutes: 30             # running のままこの分数を超えたら stale（回復可能）
+  recovery_offset_minutes: 15         # 各通常時刻の何分後に回復チェックするか
+  runs_dir: "data/report_runs"        # 実行記録JSON（YYYY-MM-DD.json）の保存先
+  history_dir: "output/history"       # 各スロットの履歴HTML（YYYY-MM-DD/<slot>.html）の保存先
+  slots:
+    - id: "pre_market"
+      time: "07:30"
+      label: "寄り前レポート"
+    - id: "market_open"
+      time: "09:10"
+      label: "寄り付き確認"
+    - id: "morning_close"
+      time: "11:30"
+      label: "前場終了レポート"
+    - id: "afternoon_open"
+      time: "12:40"
+      label: "後場開始確認"
+    - id: "market_close"
+      time: "15:40"
+      label: "大引けレポート"
+    - id: "evening"
+      time: "17:20"
+      label: "夕方総括"
+
+# 通知機能のON/OFF切り替え。
+# enabled: false にすると、対応する環境変数が設定されていても通知を送らない。
+# メール・LINEとも、環境変数が未設定の場合は自動的にスキップされ、
+# レポート生成自体が失敗することはない。
+notifications:
+  email:
+    enabled: true
+  line:
+    enabled: true
+
+# Rashinban Learning Source（v2.6）
+# 岡三「羅針盤」を学習ソースとして読み込む設定。
+# data/rashinban/ に .md / .txt を置くだけで、毎朝のGitHub Actions実行時に
+# 自動で読み込まれ、分析フレーム（判断の型）として各分析へ補助的に反映される。
+# ファイルが1つも無い場合は自動的にスキップされ、既存動作は一切変わらない。
+# ※ 本文はレポートへ転載しない（ファイル名・日付・抽出フレーム数のみ表示）。
+# ※ PDF/DOCXは対象外。md/txtへ変換して置く運用（詳細は data/rashinban/README.md）。
+rashinban:
+  dir: "data/rashinban"   # 羅針盤ファイルの置き場所
+  # v2.7: 知識ベース化。最大100件を読み込み、重複統合＋重要度（複数号での
+  # 繰り返し登場＋キーワード密度）順に重要な知識だけを抽出する。
+  max_files: 100          # 新しい順に読み込む最大ファイル数
+
+# ===== v2.8 Smart Intelligence Evolution =====
+
+# 英語ニュース自動翻訳（④）。ANTHROPIC_API_KEY（Secrets）がある時のみ動作し、
+# 英語見出しを日本語へ翻訳して「日本語 → 原文を見る」で表示する。
+# キー未設定・失敗時は原文のまま（既存動作に影響なし）。
+# v3.0（①）: cache_dir に翻訳キャッシュ（translation_cache.json）を保存し、
+# 過去に翻訳した見出しはAPIキー無しでも日本語表示・再利用する（コスト削減）。
+translation:
+  enabled: true
+  cache_dir: "data/translation_cache"
+
+# Real-Time Update Engine（v3.0導入 → v3.4でワンタップ生成に対応）。
+# HTMLの「最新表示に更新」は、GitHub Pagesが静的サイトのためページ内から直接
+# main.pyを実行できない（Token/SecretsをHTMLへ出す実装は禁止）。
+# v3.4: Cloudflare Worker等の「認証つき中継バックエンド」を用意すれば、
+# HTMLの「🚀 ワンタップで最新レポート生成」から endpoint_url へPOSTするだけで
+# GitHub Actions を起動できる（Tokenは中継バックエンド側のSecretにのみ保管し、
+# HTML・JSには一切出さない）。Worker の作り方は cloudflare/README.md を参照。
+#
+# enabled=false（既定）の間は従来通り「ページ再読み込み」＋「GitHub Actions画面を
+# 開く（Run workflow）」の安全導線のみ（ワンタップボタンは表示しない）。
+# Cloudflare Worker をデプロイして endpoint_url を設定したら、enabled: true にすると
+# HTMLにワンタップ生成ボタンが表示される。
+realtime:
+  enabled: false                 # true かつ endpoint_url 設定でワンタップ生成ボタンを表示
+  provider: ""                   # 例: "cloudflare_worker" / "vercel_function" / "github_app"
+  endpoint_url: ""               # 中継エンドポイントURL（例: https://<worker>.<account>.workers.dev/trigger）
+  mode: "manual_actions"         # "one_tap"（Worker設定済み）/ "manual_actions"（既定・手動Run workflow）
+  # 設定例（Cloudflare Worker デプロイ後）:
+  #   enabled: true
+  #   provider: "cloudflare_worker"
+  #   endpoint_url: "https://daily-market-brief-trigger.example.workers.dev/trigger"
+  #   mode: "one_tap"
+
+# 経済カレンダー自動取得（v3.0・③）。公開RSS/JSON/CSVを sources に列挙すると
+# 自動取得し、config.yamlのmacro_events（手入力）とマージして「今週の重要イベント」
+# に反映する。取得失敗・未設定時はmacro_eventsのみで継続（レポートは止まらない）。
+# 各sourceは { name, url, type(rss/json/csv・省略可) }。公開ソースのみ・APIキー不要。
+# 後方互換として単一の url: も受け付ける。信頼できる無償ソースが確定するまでは
+# sources空欄（自動取得なし）＝macro_events手入力運用を推奨。
+economic_calendar:
+  url: ""
+  sources: []
+
+# ===== v4.x External Data Foundation（Article Intelligence Data Tank 連携） =====
+# 別リポジトリ・別プロジェクトの Article Intelligence Data Tank が生成した軽量な
+# Published Intelligence Package（manifest.json / intelligence_package.json.gz）を
+# 取得するだけの薄いConsumer Client設定。manifest_url/package_urlが空欄の間は
+# 従来通り（ネットワークアクセスなし・disabled状態）で安全に動作する。
+# Data Tank側の障害・未設定でもレポート生成は止まらない（直前キャッシュへ
+# フォールバック、キャッシュも無ければ既存のニュース処理のみで継続）。
+external_intelligence:
+  enabled: true
+  manifest_url: "https://raw.githubusercontent.com/takehiro104toshi-cmd/article-intelligence-data-tank/main/published/latest/manifest.json"     # Article Intelligence Data Tank の配信manifest（raw配信・main）
+  package_url: "https://raw.githubusercontent.com/takehiro104toshi-cmd/article-intelligence-data-tank/main/published/latest/intelligence_package.json.gz"       # 同上 intelligence_package.json.gz（gzip）
+  timeout_seconds: 10
+  retry_count: 1
+  latest_minutes: 30    # これ以内なら usage_state="latest"
+  warning_minutes: 90   # これ以内なら freshness_label="warning"
+  stale_minutes: 360    # これを超えたキャッシュはfallback候補
+  cache_enabled: true
+  cache_dir: "data/external_intelligence_cache"
+  fallback_to_cache: true
+  fallback_to_legacy_news: true
+  # 例（公開ソースが確認できたら設定する。すべて公開RSS/JSON/CSVのみ）:
+  # sources:
+  #   - { name: "自作イベントJSON", url: "https://raw.githubusercontent.com/<you>/<repo>/main/events.json", type: "json" }
+  #   - { name: "Fed カレンダーRSS", url: "https://www.federalreserve.gov/feeds/press_all.xml", type: "rss" }
+
+# Investment Journal（①）。毎日のAI判断を記録し、30/90/180日後に実際の
+# 市場と自動で答え合わせする（GitHub Actionsが journal.json をコミットして永続化）。
+investment_journal:
+  dir: "data/investment_journal"
+
+# Theme Confidence Learning（②）。毎日のテーマ予想を蓄積し勝率を学習して、
+# Future IntelligenceのConfidenceを上下限つきで実績補正する。
+theme_learning:
+  dir: "data/theme_learning"

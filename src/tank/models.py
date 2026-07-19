@@ -140,6 +140,9 @@ class SourceCursor:
     last_http_status: int = 0
     consecutive_failures: int = 0
     next_retry_at: str = ""
+    # Production News Sources Phase（§8）で追加。既存記録との後方互換のためデフォルト付き。
+    last_success_count: int = 0
+    last_error: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
