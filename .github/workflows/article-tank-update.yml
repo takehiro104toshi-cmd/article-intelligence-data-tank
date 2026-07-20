@@ -42,9 +42,17 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run ingestion and publish package
+        id: ingest
         run: python scripts/run_ingestion.py
 
+      # run_ingestion.py の終了コード2（degraded: 一部ソース失敗だが公開は成功）でも
+      # GitHub Actionsはステップ失敗として後続をデフォルトでスキップしてしまうため、
+      # 常にこのステップを実行する（if: always()）。せっかく取得・公開できた
+      # データがcommitされずに失われることを防ぐ（終了コード1=全滅時は、
+      # run_ingestion.py側で新規シャード・Packageの変更が発生しないため、
+      # 下のgit diffが空になり自然にコミットはスキップされる＝安全）。
       - name: Commit and push tank data + published package
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

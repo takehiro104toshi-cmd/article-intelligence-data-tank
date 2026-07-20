@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## v0.4.1 (2026-07-20) — degraded終了時にcommitステップがスキップされる不具合を修正
+
+ソース拡充後の初回ライブ実行で発覚。`run_ingestion.py`の終了コード2（degraded:
+一部ソース失敗だが配信Packageは公開成功）は、GitHub Actionsのステップとしては
+「失敗」扱いになり、後続の「commit and push」ステップがデフォルトでスキップされて
+いた。結果、パッケージ自体は正しく生成されているのに、shards・published/latest
+への変更がリポジトリへ一切コミットされず失われる状態になっていた。
+
+### 修正
+
+- `.github/workflows/article-tank-update.yml`: 「Commit and push tank data +
+  published package」ステップに`if: always()`を追加し、`run_ingestion.py`が
+  degraded（終了コード2）で終わっても必ずcommit/pushを試みるようにした。
+  全滅（終了コード1）の場合は新規シャード・Package自体が生成されないため
+  `git diff`が空になり、従来通り自然にコミットはスキップされる（安全）。
+
 ## v0.4.0 (2026-07-20) — 英語記事の分類修正＋ソース拡充（重要度・業種・業界での精査を実効化）
 
 「重要度・業種・業界に応じて精査」が実際には機能していなかった根本原因を修正した。
