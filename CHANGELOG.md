@@ -1,5 +1,48 @@
 # CHANGELOG
 
+## v0.5.1 (2026-07-20) — 毎時0分の混雑によるscheduled実行のスキップを回避
+
+実行履歴を確認したところ、`cron: "0 * * * *"`（毎時0分）の自動実行が何度も
+記録に残らず、数時間空くことがあった。GitHub公式ドキュメントに、scheduled
+workflowは毎時0分（世界中のワークフローが集中する最混雑タイミング）に設定すると
+遅延・スキップされやすいと明記されており、これが原因と判断した。
+
+### 修正
+
+- `.github/workflows/article-tank-update.yml`: cronを`"0 * * * *"`から
+  `"17 * * * *"`（毎時17分）に変更。0分を避けることでスケジュール実行の
+  信頼性を上げる（GitHub公式の推奨に準拠）。
+
+## v0.5.0 (2026-07-20) — 記事スコアリングの実装（importance全0.00の修正）＋テーマ集計の整理
+
+ライブ運用のレポートで「主要因のimportanceが全て0.00」「無関係な単発記事が主要因に
+混入」「テーマ集計の最上位がuncategorized 614件」という問題が確認された。根本原因は、
+ingestionがfreshness/source_trustしか設定しておらず、importance_score /
+market_impact_score / urgency_score / structural_score が一度も計算されていなかった
+こと（cluster集計はmax(記事スコア)のため全て0となり、global_driversの順位が無意味に
+なっていた）。
+
+### 修正
+
+- `src/tank/scoring.py`: `score_article_signals(article)`を追加。分類結果
+  （primary_category/themes）・情報源信頼度・緊急性キーワード（日英）のみから
+  4スコアを決定論的に算出する（生成AI・外部データなし）。構造的カテゴリ・
+  高市場影響カテゴリは金融政策・地政学・資源・防衛・半導体・AI等を同列に列挙
+  （§17 公平性: 特定テーマを優遇するコードパスなし）。
+- `src/tank/ingestion.py`: classify直後に`score_article_signals`を呼ぶよう配線。
+  以降の新規記事はスコア付きで保存され、cluster集計・global_drivers順位・
+  配信先（daily-market-brief）の重要度加点が実際に機能する。
+  ※過去に保存済みの記事（スコア0のまま）は再計算しないが、hot window（72時間）
+  経過後は自然に新スコア付き記事だけが配信対象になる。
+- `src/tank/publication.py`: `build_theme_summary`から"uncategorized"を除外
+  （分類できなかった印はテーマではないため、集計最上位に出るノイズを防ぐ）。
+- `tests/test_scoring.py`: スコア算出（カテゴリ別の高低・緊急キーワード・0-1境界）と
+  theme_summaryのuncategorized除外を検証するテストを4件追加。
+
+### pytest
+
+118 passed（既存114＋新規4）。
+
 ## v0.4.1 (2026-07-20) — degraded終了時にcommitステップがスキップされる不具合を修正
 
 ソース拡充後の初回ライブ実行で発覚。`run_ingestion.py`の終了コード2（degraded:

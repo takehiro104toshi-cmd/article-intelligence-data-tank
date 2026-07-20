@@ -15,10 +15,16 @@ name: Article Tank Update
 #
 # Market Intelligence 側のworkflowから、この重い処理を直接呼び出さないこと
 # （Data Tankは完全に独立したリポジトリ・スケジュールで動く）。
+#
+# ★注意（GitHub公式の既知の制約）: scheduled workflowは「毎時0分」ちょうどに
+# 設定すると、世界中の大量のワークフローが同時に集中するため、GitHub Actions側の
+# 混雑により遅延・スキップされやすい（GitHub公式ドキュメントが明記している既知の
+# 挙動。実際に本ワークフローでも複数回スキップされる事象を確認した）。
+# これを避けるため、あえて0分から外した時刻（毎時17分）に設定している。
 
 on:
   schedule:
-    - cron: "0 * * * *"   # 毎時0分（UTC）＝1日24回
+    - cron: "17 * * * *"   # 毎時17分（UTC）＝1日24回。0分は混雑するため避ける
   workflow_dispatch: {}
 
 permissions:

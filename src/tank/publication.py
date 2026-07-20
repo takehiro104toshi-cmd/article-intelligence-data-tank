@@ -150,7 +150,9 @@ def build_theme_summary(articles: List[Article], limit: int) -> List[dict]:
     counts: dict = {}
     for a in articles:
         for theme in (a.themes or [a.primary_category]):
-            if not theme:
+            # "uncategorized"はテーマではなく「分類できなかった」印のため集計から除外する
+            # （配信先でノイズが集計最上位に表示されるのを防ぐ）。
+            if not theme or theme == "uncategorized":
                 continue
             entry = counts.setdefault(theme, {"theme": theme, "article_count": 0, "avg_importance": 0.0, "_sum": 0.0})
             entry["article_count"] += 1

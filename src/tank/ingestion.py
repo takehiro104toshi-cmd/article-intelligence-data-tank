@@ -20,7 +20,7 @@ from .cursor import CursorStore, fetch_from_datetime
 from .dedup import compute_hashes, find_duplicate_group
 from .index import ArticleIndex
 from .models import Article, EventCluster, SourceCursor
-from .scoring import freshness_score
+from .scoring import freshness_score, score_article_signals
 from .storage import ArticleStore
 from .url_normalize import normalize_url, source_domain_of
 
@@ -118,6 +118,10 @@ def run_ingestion_for_source(
         classify_article(article)
         article.freshness_score = freshness_score(article.published_at_utc, now)
         article.source_score = article.source_trust
+        # v0.5.0: importance/market_impact/urgency/structural を分類結果から機械的に算出。
+        # これが無いと全記事0.0のままcluster集計・global_drivers順位・配信先の
+        # 重要度加点がすべて無意味になる（classify後に呼ぶこと）。
+        score_article_signals(article)
 
         cluster_id = find_matching_cluster(article, clusters, articles_by_id)
         if cluster_id is None:

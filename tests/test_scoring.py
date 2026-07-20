@@ -46,3 +46,54 @@ def test_article_count_is_not_a_direct_score_input():
 def test_weights_sum_to_one():
     from tank.scoring import RETRIEVAL_WEIGHTS
     assert abs(sum(RETRIEVAL_WEIGHTS.values()) - 1.0) < 1e-9
+
+
+# ---------- v0.5.0: score_article_signals（記事レベルのimportance等の算出） ----------
+
+def _scored_article(title, category, themes=None, trust=0.5):
+    from tank.scoring import score_article_signals
+    from tests.factories import make_article
+
+    art = make_article(title=title, source_trust=trust)
+    art.primary_category = category
+    art.themes = themes if themes is not None else ([category] if category != "uncategorized" else [])
+    score_article_signals(art)
+    return art
+
+
+def test_monetary_policy_scores_higher_than_uncategorized():
+    fed = _scored_article("FRB signals rate cut", "monetary_policy", trust=0.98)
+    misc = _scored_article("Local festival draws crowds", "uncategorized", trust=0.5)
+    assert fed.importance_score > misc.importance_score
+    assert fed.market_impact_score > misc.market_impact_score
+    assert fed.structural_score == 1.0
+    assert misc.structural_score == 0.0
+
+
+def test_urgent_keyword_raises_urgency_and_impact():
+    calm = _scored_article("Oil market weekly review", "oil")
+    urgent = _scored_article("Oil prices plunge after supply shock", "oil")
+    assert urgent.urgency_score > calm.urgency_score
+    assert urgent.market_impact_score > calm.market_impact_score
+
+
+def test_scores_are_bounded_zero_to_one():
+    art = _scored_article("緊急 utage rate hike crash plunge", "monetary_policy",
+                          themes=["monetary_policy", "rates", "fx", "inflation"], trust=1.0)
+    for value in (art.importance_score, art.market_impact_score, art.urgency_score, art.structural_score):
+        assert 0.0 <= value <= 1.0
+
+
+def test_theme_summary_excludes_uncategorized():
+    from tank.publication import build_theme_summary
+    from tests.factories import make_article
+
+    a1 = make_article(url="https://x/1")
+    a1.themes = ["ai"]
+    a2 = make_article(url="https://x/2")
+    a2.themes = []
+    a2.primary_category = "uncategorized"
+    summary = build_theme_summary([a1, a2], limit=10)
+    themes = [e["theme"] for e in summary]
+    assert "ai" in themes
+    assert "uncategorized" not in themes
