@@ -28,3 +28,51 @@ def test_uncategorized_when_no_keywords_match():
     art = make_article(title="特定できない話題です", description="")
     classify_article(art)
     assert art.primary_category == "uncategorized"
+
+
+# ---------- 英語記事の分類（Tankの情報源は英語RSSが多いため必須） ----------
+
+def test_english_article_classified_by_topic_not_uncategorized():
+    art = make_article(
+        title="TSMC accelerating Arizona factory buildout to capitalize on AI megatrend",
+        description="The chipmaker is ramping up its semiconductor investment amid strong demand.",
+    )
+    classify_article(art)
+    assert art.primary_category != "uncategorized"
+    assert art.primary_category in ("ai", "semiconductor")
+
+
+def test_english_automotive_article_classified_as_auto():
+    art = make_article(
+        title="Automaker unveils new electric vehicle lineup",
+        description="The carmaker announced an expansion of its automotive production line.",
+    )
+    classify_article(art)
+    assert art.primary_category == "auto"
+
+
+def test_english_geopolitics_article_classified_correctly():
+    art = make_article(
+        title="Tensions rise in the Middle East as Iran and Israel exchange warnings",
+        description="Analysts describe the standoff as a deepening geopolitical crisis.",
+    )
+    classify_article(art)
+    assert art.primary_category in ("us_iran_middle_east", "geopolitics")
+
+
+# ---------- 単語境界による誤検知防止（英語の部分一致を避ける） ----------
+
+def test_short_acronym_does_not_false_positive_inside_unrelated_word():
+    # "said" の中に "ai" という部分文字列が含まれるが、単語境界チェックにより
+    # "AI" キーワードには一致しない（大文字小文字を無視しても同様）。
+    art = make_article(title="The central bank official said rates would remain unchanged", description="")
+    classify_article(art)
+    assert art.primary_category != "ai"
+
+
+def test_ev_keyword_does_not_match_inside_unrelated_words():
+    # "even" や "review" に含まれる "ev" には反応せず、"EV" が独立した単語として
+    # 現れた場合のみ auto カテゴリに寄与する。
+    art = make_article(title="Even after the review, analysts remained cautious", description="")
+    classify_article(art)
+    assert art.primary_category != "auto"
