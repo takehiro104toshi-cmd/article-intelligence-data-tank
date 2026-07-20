@@ -50,6 +50,27 @@ def test_atomic_write_leaves_no_temp_files(tmp_path):
     assert leftover_tmp == []
 
 
+def test_purge_shards_before_removes_only_older_dates(tmp_path):
+    store = ArticleStore(str(tmp_path))
+    store.append_articles("2026-01-03", [make_article(url="https://example.com/old")])
+    store.append_articles("2026-06-01", [make_article(url="https://example.com/mid")])
+    store.append_articles("2026-07-19", [make_article(url="https://example.com/new")])
+
+    removed = store.purge_shards_before("2026-01-21")
+
+    assert removed == ["2026-01-03"]
+    remaining_dates = {p.stem for p in store.all_shard_paths()}
+    assert remaining_dates == {"2026-06-01", "2026-07-19"}
+
+
+def test_purge_shards_before_no_op_when_nothing_older(tmp_path):
+    store = ArticleStore(str(tmp_path))
+    store.append_articles("2026-07-19", [make_article()])
+    removed = store.purge_shards_before("2026-01-01")
+    assert removed == []
+    assert len(store.all_shard_paths()) == 1
+
+
 def test_corrupted_shard_is_quarantined_and_pipeline_continues(tmp_path):
     store = ArticleStore(str(tmp_path))
     store.append_articles("2026-07-15", [make_article()])

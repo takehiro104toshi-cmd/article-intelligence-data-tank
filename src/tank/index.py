@@ -82,6 +82,18 @@ class ArticleIndex:
         self._conn.commit()
         return len(rows)
 
+    def delete_before(self, cutoff_date: str) -> int:
+        """shard_dateがcutoff_date（'YYYY-MM-DD'）より古い行を削除する（保持期間・retention）。
+
+        shard_dateが空文字の行（想定外データ）は対象外とし、誤って削除しない。
+        削除した行数を返す。
+        """
+        cur = self._conn.execute(
+            "DELETE FROM articles WHERE shard_date != '' AND shard_date < ?", (cutoff_date,)
+        )
+        self._conn.commit()
+        return cur.rowcount
+
     def canonical_hash_map(self) -> dict:
         cur = self._conn.execute("SELECT canonical_hash, duplicate_group_id FROM articles WHERE canonical_hash != ''")
         return {row[0]: (row[1] or row[0]) for row in cur.fetchall()}

@@ -11,7 +11,10 @@ article_tank:
   storage_format: "jsonl"            # pyarrow/duckdbを追加インストールせずに動く既定実装
   hot_hours: 72
   warm_days: 90
-  retention_days: null               # null = 無期限保持
+  # 保持期間（retention）: この日数より古いシャード・索引行を次回実行時に自動削除し、
+  # GitHub repoの無制限な肥大化を防ぐ（storage.purge_shards_before / index.delete_before）。
+  # null にすると無期限保持（削除しない・従来動作）に戻せる。
+  retention_days: 30
   overlap_hours: 48
   max_fetch_workers: 6
   source_timeout_seconds: 12

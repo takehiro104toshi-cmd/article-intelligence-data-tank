@@ -70,3 +70,26 @@ def test_count_and_source_domain_count(tmp_path):
     idx, articles = _build_index(tmp_path)
     assert idx.count() == 3
     assert idx.source_domain_count() == 3
+
+
+def test_delete_before_removes_only_older_shard_dates(tmp_path):
+    idx = ArticleIndex(str(tmp_path / "index.sqlite"))
+    old = make_article(url="https://a.example/1")
+    mid = make_article(url="https://b.example/1")
+    new = make_article(url="https://c.example/1")
+    idx.upsert_articles([old], shard_date="2026-01-03")
+    idx.upsert_articles([mid], shard_date="2026-06-01")
+    idx.upsert_articles([new], shard_date="2026-07-19")
+
+    removed = idx.delete_before("2026-01-21")
+
+    assert removed == 1
+    assert idx.count() == 2
+
+
+def test_delete_before_ignores_rows_without_shard_date(tmp_path):
+    idx = ArticleIndex(str(tmp_path / "index.sqlite"))
+    idx.upsert_articles([make_article()])  # shard_date未指定 = ""
+    removed = idx.delete_before("2026-12-31")
+    assert removed == 0
+    assert idx.count() == 1

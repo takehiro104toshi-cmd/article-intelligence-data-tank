@@ -106,6 +106,24 @@ class ArticleStore:
         except OSError:
             pass
 
+    def purge_shards_before(self, cutoff_date: str) -> List[str]:
+        """cutoff_date（'YYYY-MM-DD'）より古い日付のシャードファイルを削除する（保持期間・retention）。
+
+        削除したシャードの日付一覧（昇順）を返す（呼び出し側のログ・統計用）。
+        ArticleIndex側の該当行削除は行わない（呼び出し側がArticleIndex.delete_beforeを
+        別途呼ぶ責務を持つ。ストア本体とindexは別コンポーネントのため）。
+        """
+        removed: List[str] = []
+        for path in self.all_shard_paths():
+            date_str = path.stem
+            if date_str < cutoff_date:
+                try:
+                    path.unlink()
+                    removed.append(date_str)
+                except OSError:
+                    pass
+        return sorted(removed)
+
     def iter_shards(self, date_from: Optional[str] = None, date_to: Optional[str] = None) -> Iterator[Article]:
         """全シャードを横断してジェネレータで記事を返す（§30-6, §30-42 全件メモリ読込禁止）。
         date_from/date_to（'YYYY-MM-DD'）を指定すると対象シャードを絞り込む。

@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## v0.3.0 (2026-07-20) — Retention（保存データの保持期間・自動削除）
+
+ArticleStore/ArticleIndexは追記オンリー（append-only）で、記事は取得され続ける限り
+無期限に蓄積されていた（`article_tank.retention_days`はconfig.yamlに存在したが未配線）。
+GitHub repoの無制限な肥大化と、極端に古い記事が配信候補に紛れ込むリスクを防ぐため、
+保持期間を過ぎたシャード・索引行を毎回の実行時に自動削除する仕組みを配線した。
+
+### 追加
+
+- `src/tank/storage.py`: `ArticleStore.purge_shards_before(cutoff_date)`を追加。
+  cutoff_dateより古い日付のシャードファイルを削除し、削除した日付一覧を返す。
+- `src/tank/index.py`: `ArticleIndex.delete_before(cutoff_date)`を追加。
+  shard_dateがcutoff_dateより古い行をSQLiteから削除する（shard_date未設定の行は
+  誤削除しないよう対象外）。
+- `scripts/run_ingestion.py`: 取得処理の直後に`article_tank.retention_days`
+  （既定30日）を読み、cutoff（JST日付）より古いシャード・索引行を削除する処理を
+  追加。`retention_days: null`にすると従来通りの無期限保持へ戻せる（後方互換）。
+- `config.yaml`: `retention_days: null`（未配線・無期限）を`retention_days: 30`
+  （配線済み・30日）に変更。
+- `tests/test_storage.py` / `tests/test_index.py`: purge_shards_before /
+  delete_before の境界値・no-op・shard_date未設定行の非削除を検証するテストを
+  4件追加。
+
+### pytest
+
+109 passed（既存105＋新規4）。
+
 ## v0.2.0 (2026-07-18) — Production News Sources & Live Ingestion Phase
 
 現在空だった Data Tank へ、実在する公開RSS/Atomから実際にニュースを取得する

@@ -143,6 +143,21 @@ def main(argv=None) -> int:
         )
         store.write_manifest()
 
+    # 保持期間（retention）: article_tank.retention_days（既定null=無期限）より古い
+    # シャード・索引行を削除し、ストアの無制限な肥大化を防ぐ（§ retention）。
+    # --verifyでは到達しない・--dry-runでも「取得・保存」の一部として実行する。
+    retention_days = tank_cfg.get("retention_days")
+    if retention_days is not None:
+        cutoff_date = (now - timedelta(days=int(retention_days))).astimezone(_JST).strftime("%Y-%m-%d")
+        purged_dates = store.purge_shards_before(cutoff_date)
+        if purged_dates:
+            purged_rows = index.delete_before(cutoff_date)
+            store.write_manifest()
+            print(
+                f"保持期間（{retention_days}日）を超えたシャード{len(purged_dates)}件"
+                f"（{purged_dates[0]}〜{purged_dates[-1]}）・索引{purged_rows}件を削除しました。"
+            )
+
     # ソース健全性の集計
     enabled_count = len(live_sources)
     success = sum(1 for r in source_results if r.get("status") == "success")
