@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-20T03:47:26.575524+00:00",
-  "checksum": "79e79e7683da1388a5ed9d2fa56da1ee236dbac8a262f319c17524313cb1209d",
-  "compressed_size": 16291,
-  "uncompressed_size": 91543,
+  "generated_at": "2026-07-20T05:48:23.168955+00:00",
+  "checksum": "a90855102e51a3214b6d64e577eef98c4d296a0efb6bdbea8555a7f946d3c4e5",
+  "compressed_size": 16736,
+  "uncompressed_size": 93949,
   "item_counts": {
-    "hot_articles": 68,
+    "hot_articles": 70,
     "global_drivers": 20,
     "market_reactions": 0,
     "risk_radar": 0,
@@ -15,8 +15,8 @@
     "source_health": 19
   },
   "data_range": {
-    "oldest": "2026-07-20T03:40:00+00:00",
-    "newest": "2026-07-20T03:47:26.575524+00:00"
+    "oldest": "2026-07-20T05:47:37+00:00",
+    "newest": "2026-07-20T05:48:23.168955+00:00"
   },
   "publication_status": "success",
   "package_file": "intelligence_package.json.gz"
