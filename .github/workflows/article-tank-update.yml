@@ -1,27 +1,24 @@
 name: Article Tank Update
 
 # Article Intelligence Data Tank の独立ワークフロー（§11）。
-# Market Intelligence System（daily-market-brief）の1日6回のレポート生成より
-# 15分前にDataTankを更新し、Market Intelligence側が最新のPublished Packageを
-# 取得できるようにする（§10）。ただしGitHub Actions側のスケジュール遅延は
-# 解消できないため、完全同期は前提にしない。
 #
-# 更新時刻（JST）: 07:10 / 08:55 / 11:15 / 12:25 / 15:25 / 17:05
-#   07:10 JST = 22:10 UTC（前日） / 08:55 JST = 23:55 UTC（前日）
-#   11:15 JST = 02:15 UTC / 12:25 JST = 03:25 UTC
-#   15:25 JST = 06:25 UTC / 17:05 JST = 08:05 UTC
+# 1時間おきに巡回する（従来は1日6回）。多くのRSSフィードは「最新20〜30件」しか
+# 保持しないため、巡回間隔が長いと更新の激しい情報源で記事を取りこぼす。
+# ETag/Last-Modified による条件付きGET（fetcher.py）が既に実装済みのため、
+# 変更が無いソースへの巡回は HTTP 304 で即終了し、頻度を上げてもサーバー負荷・
+# 実行コストはほぼ増えない（§ 429/403等への無理な再試行はしない、という方針とは
+# 独立: 304は「変更なし」の正常応答であり再試行ではない）。
+#
+# Market Intelligence System（daily-market-brief）は1日6回のレポート生成の直前に
+# 最新のPublished Packageを取得するため、1時間おきの更新であれば常に
+# latest_minutes(30分)〜warning_minutes(90分)以内の鮮度で参照できる。
 #
 # Market Intelligence 側のworkflowから、この重い処理を直接呼び出さないこと
 # （Data Tankは完全に独立したリポジトリ・スケジュールで動く）。
 
 on:
   schedule:
-    - cron: "10 22 * * *"   # 07:10 JST
-    - cron: "55 23 * * *"   # 08:55 JST
-    - cron: "15 2 * * *"    # 11:15 JST
-    - cron: "25 3 * * *"    # 12:25 JST
-    - cron: "25 6 * * *"    # 15:25 JST
-    - cron: "5 8 * * *"     # 17:05 JST
+    - cron: "0 * * * *"   # 毎時0分（UTC）＝1日24回
   workflow_dispatch: {}
 
 permissions:
