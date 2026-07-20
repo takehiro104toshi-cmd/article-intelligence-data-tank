@@ -350,8 +350,10 @@ sources:
   # ---------- 総合金融メディア（地域分散） ----------
   - id: reuters_business
     name: Reuters — Business & Finance
+    # 2026-07-20のライブ確認でHTTP 404。Reutersは2020年頃に公開RSSの多くを廃止して
+    # おり、安定した代替URLが未確認のため、確認できるまでenabled: falseのままとする。
     url: "https://www.reutersagency.com/feed/?best-topics=business-finance"
-    enabled: true
+    enabled: false
     format: auto
     source_class: major_news
     country: US
