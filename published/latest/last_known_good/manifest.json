@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-21T12:02:57.328920+00:00",
-  "checksum": "332bca232b0a0d3aee5cfcab2ad56250ad681a4e6f53d51f690ff50d868f6092",
-  "compressed_size": 22740,
-  "uncompressed_size": 126350,
+  "generated_at": "2026-07-21T12:45:55.807438+00:00",
+  "checksum": "3442422e5e8dbabb05b8da4801885be731aba5fbfd8e4277a0823f0edd5a9ff5",
+  "compressed_size": 22944,
+  "uncompressed_size": 126539,
   "item_counts": {
     "hot_articles": 100,
     "global_drivers": 20,
@@ -15,8 +15,8 @@
     "source_health": 36
   },
   "data_range": {
-    "oldest": "2026-07-21T11:56:14+00:00",
-    "newest": "2026-07-21T12:02:57.328920+00:00"
+    "oldest": "2026-07-21T12:42:10+00:00",
+    "newest": "2026-07-21T12:45:55.807438+00:00"
   },
   "publication_status": "success",
   "package_file": "intelligence_package.json.gz",
