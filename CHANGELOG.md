@@ -1,5 +1,43 @@
 # CHANGELOG
 
+## v0.8.1 (2026-07-21) — Batch 1候補の到達性確認結果を反映（enabled 33→45）
+
+GitHub Actions の `verify_candidates` モードで、Batch 1由来20件＋既存disabled 15件の
+計35候補ソースの到達性を実確認した。結果は **到達可能12 / 失敗23**。
+
+### 有効化（12件・`verify_status: verified_healthy`）
+
+- ecb_press（欧州中央銀行）/ boe_news（イングランド銀行）/ wto_news（WTO）/
+  allafrica_headlines / mercopress / freightwaves / greenbiz（既存disabled 15件の一部）
+- jp_fsa_news（金融庁）/ us_sec_press（SEC press）/ us_census_economic（Census）/
+  us_federal_register_energy（Federal Register）/ us_ftc_press（FTC）（Batch1新規追加分）
+
+### 未解決（23件・enabled: false のまま維持）
+
+- **HTTP 403（forbidden_403、7件）**: us_bls, imf_news, jp_meti_release, SEC EDGAR
+  8-K/10-Q/10-K/6-K（4件）。EDGARはUser-Agentポリシーが別途必要な可能性があり要調査。
+- **HTTP 404（unreachable、16件）**: uk_gov, us_treasury, reuters_business, lightreading,
+  rba_media, uk_ons_releases, および日本の政府系9件（首相官邸/総務省統計局/内閣府/財務省/
+  国交省/日銀統計/JPX/環境省）、us_bea_news, us_fda_press。日本の省庁RSSは軒並み404の
+  ため、掲載URLが変更・廃止されている可能性が高い（正式なURL調査はBatch2以降で実施）。
+
+各ソースへ `verify_status`（verified_healthy / unreachable / forbidden_403）と
+確認日を記録し、`config/sources.yaml` から検証状況を追跡できるようにした。
+
+### テスト
+
+- `test_new_batch1_sources_are_disabled_pending` を実態（verify後）に合わせて
+  `test_no_source_enabled_without_verification`（§6: 未検証ソースを有効化しない不変条件）
+  と `test_batch1_candidates_all_resolved_no_pending`（pending解消の確認）へ置き換え。
+- 158→**159 passed**。
+
+### Coverage（参考値・enabled 45件時点）
+
+tier1_share 27%（12%→改善・目標35%は未達）/ japan_share 7%（6%→改善・目標12%は未達）/
+us_share 53% / top_region North America 44%（依然集中・要Batch2でのregion分散）。
+日本の政府系一次情報の多くが404だったため、日本Coverageの本格改善はURL再調査後の
+Batch2以降に持ち越し。
+
 ## v0.8.0 (2026-07-21) — Phase 3 Batch 1（並列取得＋日米一次情報＋dedup検証）
 
 Source Portfolio拡張の第1弾。150〜250ソースへ拡張する前提となる**並列取得基盤**を

@@ -53,11 +53,34 @@ def test_validate_missing_field_and_bad_values():
     assert any("trust_score out of range" in e for e in errs)
 
 
-def test_new_batch1_sources_are_disabled_pending():
+_VERIFIED_ENABLE_STATUSES = {"verified_healthy", "verified_unchanged"}
+_UNVERIFIED_STATUSES = {"pending", "unreachable", "forbidden_403", "verified_but_unstable",
+                        "not_feed", "malformed", "requires_auth", "deprecated", "duplicate_source"}
+
+
+def test_no_source_enabled_without_verification():
+    """§6: 到達性が確認できていないソースを有効化しない（推測で有効化しない）。
+
+    verify_status を明示しない既存ソース（安定運用中の既定ソース）は対象外とし、
+    verify_status フィールドを持つソースについてのみ、有効化には検証済みステータスを要求する。
+    """
+    d = yaml.safe_load((ROOT / "config" / "sources.yaml").read_text(encoding="utf-8"))
+    for s in d["sources"]:
+        vs = s.get("verify_status")
+        if vs is None:
+            continue
+        if s["enabled"]:
+            assert vs in _VERIFIED_ENABLE_STATUSES, f"{s['id']}: enabled=True だが verify_status={vs}"
+        else:
+            assert vs in _UNVERIFIED_STATUSES, f"{s['id']}: 未知の verify_status={vs}"
+
+
+def test_batch1_candidates_all_resolved_no_pending():
+    """Phase 3 Batch 1で追加した候補は、到達性確認（verify_candidates）を経て
+    全て pending から解消済みであること（12件到達可・残りは404/403として記録）。"""
     d = yaml.safe_load((ROOT / "config" / "sources.yaml").read_text(encoding="utf-8"))
     pending = [s for s in d["sources"] if s.get("verify_status") == "pending"]
-    assert len(pending) >= 20                      # Batch1で20+件追加
-    assert all(s["enabled"] is False for s in pending)  # 未確認は全てdisabled（§6）
+    assert pending == [], f"未検証のまま残っている候補があります: {[s['id'] for s in pending]}"
 
 
 # ---------- Coverage 指標（§17-38〜43） ----------

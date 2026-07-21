@@ -52,7 +52,8 @@ sources:
   - id: ecb_press
     name: European Central Bank — Press
     url: "https://www.ecb.europa.eu/rss/press.html"
-    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    enabled: true
+    verify_status: verified_healthy   # 2026-07-21 verify_candidates: http=200 items=15
     format: auto
     source_class: primary_official
     country: EU
@@ -65,7 +66,8 @@ sources:
   - id: boe_news
     name: Bank of England — News
     url: "https://www.bankofengland.co.uk/rss/news"
-    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    enabled: true
+    verify_status: verified_healthy   # 2026-07-21 verify_candidates: http=200 items=50
     format: auto
     source_class: primary_official
     country: GB
@@ -78,10 +80,11 @@ sources:
   # ---------- 政府・財政・統計 ----------
   - id: us_bls
     name: U.S. Bureau of Labor Statistics — News Releases
-    # 2026-07-18 のライブ確認で HTTP 404。別URL候補を --verify で確認してから有効化すること。
+    # 2026-07-21 verify_candidates 再確認: HTTP 403（変わらず）。別URL候補を確認してから有効化すること。
     # 候補: "https://www.bls.gov/feed/bls_latest.rss" / 一覧は https://www.bls.gov/feed/
     url: "https://www.bls.gov/feed/news_release.rss"
     enabled: false
+    verify_status: forbidden_403
     format: auto
     source_class: primary_official
     country: US
@@ -93,10 +96,11 @@ sources:
 
   - id: uk_gov
     name: UK Government — Announcements
-    # 2026-07-18 のライブ確認で HTTP 404。別URL候補を --verify で確認してから有効化すること。
+    # 2026-07-21 verify_candidates 再確認: HTTP 404（変わらず）。別URL候補を確認してから有効化すること。
     # 候補: "https://www.gov.uk/search/news-and-communications.atom"
     url: "https://www.gov.uk/government/announcements.atom"
     enabled: false
+    verify_status: unreachable
     format: atom
     source_class: primary_official
     country: GB
@@ -109,7 +113,8 @@ sources:
   - id: us_treasury
     name: U.S. Department of the Treasury — Press
     url: "https://home.treasury.gov/rss/press.xml"
-    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    enabled: false   # 2026-07-21 verify_candidates: HTTP 404
+    verify_status: unreachable
     format: auto
     source_class: primary_official
     country: US
@@ -136,7 +141,8 @@ sources:
   - id: imf_news
     name: IMF — News
     url: "https://www.imf.org/en/News/rss"
-    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    enabled: false   # 2026-07-21 verify_candidates: HTTP 403
+    verify_status: forbidden_403
     format: auto
     source_class: international_institution
     country: ""
@@ -149,7 +155,8 @@ sources:
   - id: wto_news
     name: WTO — Latest News
     url: "https://www.wto.org/library/rss/latest_news_e.xml"
-    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    enabled: true
+    verify_status: verified_healthy   # 2026-07-21 verify_candidates: http=200 items=10
     format: auto
     source_class: international_institution
     country: ""
@@ -350,10 +357,11 @@ sources:
   # ---------- 総合金融メディア（地域分散） ----------
   - id: reuters_business
     name: Reuters — Business & Finance
-    # 2026-07-20のライブ確認でHTTP 404。Reutersは2020年頃に公開RSSの多くを廃止して
-    # おり、安定した代替URLが未確認のため、確認できるまでenabled: falseのままとする。
+    # 2026-07-21 verify_candidates 再確認: HTTP 404（変わらず）。Reutersは2020年頃に
+    # 公開RSSの多くを廃止しており、安定した代替URLが未確認のため enabled: false を維持。
     url: "https://www.reutersagency.com/feed/?best-topics=business-finance"
     enabled: false
+    verify_status: unreachable
     format: auto
     source_class: major_news
     country: US
@@ -484,7 +492,8 @@ sources:
   - id: allafrica_headlines
     name: AllAfrica — Headlines
     url: "https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf"
-    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    enabled: true
+    verify_status: verified_healthy   # 2026-07-21 verify_candidates: http=200 items=30
     format: auto
     source_class: aggregator
     country: ""
@@ -497,7 +506,8 @@ sources:
   - id: mercopress
     name: MercoPress — South Atlantic News Agency
     url: "https://en.mercopress.com/rss/"
-    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    enabled: true
+    verify_status: verified_healthy   # 2026-07-21 verify_candidates: http=200 items=10
     format: auto
     source_class: major_news
     country: ""
@@ -589,7 +599,8 @@ sources:
   - id: freightwaves
     name: FreightWaves — News
     url: "https://www.freightwaves.com/news/feed"
-    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    enabled: true
+    verify_status: verified_healthy   # 2026-07-21 verify_candidates: http=200 items=56
     format: auto
     source_class: specialist_media
     country: US
@@ -615,7 +626,8 @@ sources:
   - id: lightreading
     name: Light Reading — News
     url: "https://www.lightreading.com/rss_simple.asp"
-    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    enabled: false   # 2026-07-21 verify_candidates: HTTP 404
+    verify_status: unreachable
     format: auto
     source_class: specialist_media
     country: US
@@ -628,7 +640,8 @@ sources:
   - id: greenbiz
     name: GreenBiz — News
     url: "https://www.greenbiz.com/rss.xml"
-    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    enabled: true
+    verify_status: verified_healthy   # 2026-07-21 verify_candidates: http=200 items=0（フィードは有効・現時点で新着なし）
     format: auto
     source_class: specialist_media
     country: US
@@ -642,7 +655,8 @@ sources:
   - id: rba_media
     name: Reserve Bank of Australia — Media Releases
     url: "https://www.rba.gov.au/rss/rss-cb.xml"
-    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    enabled: false   # 2026-07-21 verify_candidates: HTTP 404
+    verify_status: unreachable
     format: auto
     source_class: primary_official
     country: AU
@@ -655,7 +669,8 @@ sources:
   - id: uk_ons_releases
     name: UK Office for National Statistics — Releases
     url: "https://www.ons.gov.uk/releases/rss"
-    enabled: false   # URL要確認: --verify で到達性を確認してから有効化
+    enabled: false   # 2026-07-21 verify_candidates: HTTP 404
+    verify_status: unreachable
     format: auto
     source_class: primary_official
     country: GB
@@ -682,7 +697,7 @@ sources:
     name: 首相官邸 — 新着情報
     url: "https://www.kantei.go.jp/jp/news.rdf"
     enabled: false
-    verify_status: pending
+    verify_status: unreachable   # verify_candidates: http=404 2026-07-21
     format: auto
     source_class: primary_official
     tier: 1
@@ -703,7 +718,7 @@ sources:
     name: 経済産業省 — 報道発表
     url: "https://www.meti.go.jp/ml_index_release_atom.xml"
     enabled: false
-    verify_status: pending
+    verify_status: forbidden_403   # verify_candidates: http=403 2026-07-21
     format: atom
     source_class: primary_official
     tier: 1
@@ -723,8 +738,8 @@ sources:
   - id: jp_fsa_news
     name: 金融庁 — 新着情報
     url: "https://www.fsa.go.jp/fsaNewsListAll_rss2.xml"
-    enabled: false
-    verify_status: pending
+    enabled: true
+    verify_status: verified_healthy   # 2026-07-21 verify_candidates: http=200 items=15
     format: rss
     source_class: regulator
     tier: 1
@@ -745,7 +760,7 @@ sources:
     name: 総務省統計局 — 統計新着
     url: "https://www.stat.go.jp/rss/index.rdf"
     enabled: false
-    verify_status: pending
+    verify_status: unreachable   # verify_candidates: http=404 2026-07-21
     format: auto
     source_class: statistics_agency
     tier: 1
@@ -766,7 +781,7 @@ sources:
     name: 内閣府 — 新着情報
     url: "https://www.cao.go.jp/rss/new.rdf"
     enabled: false
-    verify_status: pending
+    verify_status: unreachable   # verify_candidates: http=404 2026-07-21
     format: auto
     source_class: primary_official
     tier: 1
@@ -787,7 +802,7 @@ sources:
     name: 財務省 — 新着情報
     url: "https://www.mof.go.jp/rss/new.xml"
     enabled: false
-    verify_status: pending
+    verify_status: unreachable   # verify_candidates: http=404 2026-07-21
     format: auto
     source_class: primary_official
     tier: 1
@@ -808,7 +823,7 @@ sources:
     name: 国土交通省 — 報道発表
     url: "https://www.mlit.go.jp/page/rss.rdf"
     enabled: false
-    verify_status: pending
+    verify_status: unreachable   # verify_candidates: http=404 2026-07-21
     format: auto
     source_class: primary_official
     tier: 1
@@ -829,7 +844,7 @@ sources:
     name: 日本銀行 — 統計・調査
     url: "https://www.boj.or.jp/rss/release.xml"
     enabled: false
-    verify_status: pending
+    verify_status: unreachable   # verify_candidates: http=404 2026-07-21
     format: auto
     source_class: primary_official
     tier: 1
@@ -850,7 +865,7 @@ sources:
     name: 日本取引所グループ (JPX) — お知らせ
     url: "https://www.jpx.co.jp/news/rss/index.rdf"
     enabled: false
-    verify_status: pending
+    verify_status: unreachable   # verify_candidates: http=404 2026-07-21
     format: auto
     source_class: exchange
     tier: 1
@@ -871,7 +886,7 @@ sources:
     name: 環境省 — 報道発表
     url: "https://www.env.go.jp/rss/news.rdf"
     enabled: false
-    verify_status: pending
+    verify_status: unreachable   # verify_candidates: http=404 2026-07-21
     format: auto
     source_class: primary_official
     tier: 1
@@ -892,8 +907,8 @@ sources:
   - id: us_sec_press
     name: U.S. SEC — Press Releases
     url: "https://www.sec.gov/news/pressreleases.rss"
-    enabled: false
-    verify_status: pending
+    enabled: true
+    verify_status: verified_healthy   # 2026-07-21 verify_candidates: http=200 items=25
     format: rss
     source_class: regulator
     tier: 1
@@ -914,7 +929,7 @@ sources:
     name: SEC EDGAR — Latest 8-K Filings (Atom)
     url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&company=&dateb=&owner=include&count=100&output=atom"
     enabled: false
-    verify_status: pending
+    verify_status: forbidden_403   # verify_candidates: http=403 2026-07-21
     format: atom
     source_class: regulator
     tier: 1
@@ -937,7 +952,7 @@ sources:
     name: SEC EDGAR — Latest 10-Q Filings (Atom)
     url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=10-Q&company=&dateb=&owner=include&count=100&output=atom"
     enabled: false
-    verify_status: pending
+    verify_status: forbidden_403   # verify_candidates: http=403 2026-07-21
     format: atom
     source_class: regulator
     tier: 1
@@ -960,7 +975,7 @@ sources:
     name: SEC EDGAR — Latest 10-K Filings (Atom)
     url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=10-K&company=&dateb=&owner=include&count=100&output=atom"
     enabled: false
-    verify_status: pending
+    verify_status: forbidden_403   # verify_candidates: http=403 2026-07-21
     format: atom
     source_class: regulator
     tier: 1
@@ -983,7 +998,7 @@ sources:
     name: SEC EDGAR — Latest 6-K Filings (Atom)
     url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=6-K&company=&dateb=&owner=include&count=100&output=atom"
     enabled: false
-    verify_status: pending
+    verify_status: forbidden_403   # verify_candidates: http=403 2026-07-21
     format: atom
     source_class: regulator
     tier: 1
@@ -1008,8 +1023,8 @@ sources:
   - id: us_census_economic
     name: U.S. Census Bureau — Economic Indicators
     url: "https://www.census.gov/economic-indicators/indicator.xml"
-    enabled: false
-    verify_status: pending
+    enabled: true
+    verify_status: verified_healthy   # 2026-07-21 verify_candidates: http=200 items=18
     format: auto
     source_class: statistics_agency
     tier: 1
@@ -1030,7 +1045,7 @@ sources:
     name: U.S. Bureau of Economic Analysis — News
     url: "https://www.bea.gov/rss.xml"
     enabled: false
-    verify_status: pending
+    verify_status: unreachable   # verify_candidates: http=404 2026-07-21
     format: auto
     source_class: statistics_agency
     tier: 1
@@ -1050,8 +1065,8 @@ sources:
   - id: us_federal_register_energy
     name: U.S. Federal Register — Energy Dept documents
     url: "https://www.federalregister.gov/api/v1/documents.rss?conditions%5Bagencies%5D%5B%5D=energy-department"
-    enabled: false
-    verify_status: pending
+    enabled: true
+    verify_status: verified_healthy   # 2026-07-21 verify_candidates: http=200 items=162
     format: rss
     source_class: regulator
     tier: 1
@@ -1071,8 +1086,8 @@ sources:
   - id: us_ftc_press
     name: U.S. FTC — Press Releases
     url: "https://www.ftc.gov/feeds/press-release.xml"
-    enabled: false
-    verify_status: pending
+    enabled: true
+    verify_status: verified_healthy   # 2026-07-21 verify_candidates: http=200 items=10
     format: auto
     source_class: regulator
     tier: 1
@@ -1093,7 +1108,7 @@ sources:
     name: U.S. FDA — Press Announcements
     url: "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml"
     enabled: false
-    verify_status: pending
+    verify_status: unreachable   # verify_candidates: http=404 2026-07-21
     format: auto
     source_class: regulator
     tier: 1
