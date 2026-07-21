@@ -21,14 +21,28 @@ def _is_tracking_param(key: str) -> bool:
 
 
 def normalize_url(raw_url: str) -> str:
-    """スキーム/ホストを小文字化、フラグメント除去、トラッキングパラメータ除去、
-    残ったクエリをキー順にソートし、末尾スラッシュを除去した正規化URLを返す。
+    """正規化URLを返す（Phase 3 §12 dedup検証で強化）。
+
+    - スキームは https へ畳む（http/https差異で同一記事を別物にしない）
+    - ホスト名を小文字化し、先頭 "www." を除去（www有無差異を吸収）
+    - フラグメント除去
+    - トラッキングパラメータ除去（utm_* / fbclid / gclid 等）
+    - 残ったクエリをキー順にソート
+    - 末尾スラッシュ除去
+
+    ※これらはすべて「同一リソースを指す表記ゆれ」の吸収であり、異なる記事を
+    　統合しない。canonical_url のハッシュが article_id の安定性を担保する。
     """
     if not raw_url:
         return ""
     parts = urlsplit(raw_url.strip())
+    # http/https を https に畳む（同一記事の scheme 差異による重複すり抜けを防ぐ）。
     scheme = (parts.scheme or "https").lower()
+    if scheme in ("http", "https"):
+        scheme = "https"
     netloc = parts.netloc.lower()
+    if netloc.startswith("www."):
+        netloc = netloc[4:]  # www有無の差異を吸収
     path = parts.path.rstrip("/") or ""
     query_pairs = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if not _is_tracking_param(k)]
     query_pairs.sort(key=lambda kv: kv[0])

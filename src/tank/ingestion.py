@@ -219,37 +219,26 @@ def rebuild_index_from_store(store: ArticleStore, index: ArticleIndex,
     return total
 
 
-def run_live_ingestion_for_source(
+def _apply_fetch_result(
     source_cfg: dict,
+    result,
     store: ArticleStore,
     index: ArticleIndex,
     cursor_store: CursorStore,
     clusters: Dict[str, EventCluster],
-    now: Optional[datetime] = None,
+    now: datetime,
     overlap_hours: int = 48,
-    timeout: int = 12,
-    retry: int = 1,
-    transport=None,
-    max_items: int = 200,
     retry_backoff_minutes: int = 30,
 ) -> dict:
-    """1ソースを実際にHTTP取得し、304/失敗/成功に応じてCursorを更新して取り込む。
+    """取得済み FetchResult を保存・Index・Cursorへ反映する（**単一writerで直列に呼ぶ**）。
 
-    - not_modified(304): 記事を保存せず Cursor の最終取得時刻だけ更新（高速終了）。
-    - failed: consecutive_failures を増やし、latest_published_at は進めない（§8）。
-    - ok: ETag/Last-Modified を保存後、既存の run_ingestion_for_source へ委譲。
+    HTTP取得(fetch_feed)は並列化できるが、この適用処理は shard write / SQLite index /
+    Cursor更新を伴うため必ず単一スレッドから直列に呼ぶこと（§2, §3 thread safety）。
     """
     from datetime import timedelta
 
-    from .fetcher import fetch_feed
-
-    now = now or datetime.now(timezone.utc)
     name = source_cfg["name"]
     cursor = cursor_store.get(name)
-    cursor.last_fetch_started_at = _iso(now)
-
-    result = fetch_feed(source_cfg, cursor, timeout=timeout, retry=retry,
-                        transport=transport, max_items=max_items)
 
     if result.status == "not_modified":
         cursor.last_fetch_completed_at = _iso(now)
@@ -270,7 +259,6 @@ def run_live_ingestion_for_source(
         cursor.last_error = result.error
         cursor.next_retry_at = _iso(now + timedelta(minutes=retry_backoff_minutes))
         cursor.last_fetch_completed_at = _iso(now)
-        # latest_published_at / latest_article_id は進めない（取得失敗時に位置を進めない）
         cursor_store.update(cursor)
         return {"source": name, "status": "failed", "http_status": result.http_status,
                 "fetched": 0, "new": 0, "duplicates": 0, "error": result.error}
@@ -286,7 +274,6 @@ def run_live_ingestion_for_source(
         source_cfg, lambda cfg, cur: result.articles,
         store, index, cursor_store, clusters, now, overlap_hours,
     )
-    # 成功件数を記録（run_ingestion_for_source が consecutive_failures=0 済み）
     cur2 = cursor_store.get(name)
     cur2.last_success_count = summary.get("new", 0)
     cursor_store.update(cur2)
@@ -294,6 +281,43 @@ def run_live_ingestion_for_source(
     summary["status"] = "success"
     summary["http_status"] = result.http_status
     return summary
+
+
+def run_live_ingestion_for_source(
+    source_cfg: dict,
+    store: ArticleStore,
+    index: ArticleIndex,
+    cursor_store: CursorStore,
+    clusters: Dict[str, EventCluster],
+    now: Optional[datetime] = None,
+    overlap_hours: int = 48,
+    timeout: int = 12,
+    retry: int = 1,
+    transport=None,
+    max_items: int = 200,
+    retry_backoff_minutes: int = 30,
+) -> dict:
+    """1ソースを実際にHTTP取得し、304/失敗/成功に応じてCursorを更新して取り込む（逐次版）。"""
+    from .fetcher import fetch_feed
+
+    now = now or datetime.now(timezone.utc)
+    name = source_cfg["name"]
+    cursor = cursor_store.get(name)
+    cursor.last_fetch_started_at = _iso(now)
+
+    result = fetch_feed(source_cfg, cursor, timeout=timeout, retry=retry,
+                        transport=transport, max_items=max_items)
+    return _apply_fetch_result(source_cfg, result, store, index, cursor_store,
+                               clusters, now, overlap_hours, retry_backoff_minutes)
+
+
+def _host_of(source_cfg: dict) -> str:
+    """rate limit・同時接続制御のためにソースURLのホスト名を取り出す。"""
+    from urllib.parse import urlparse
+    try:
+        return (urlparse(source_cfg.get("url", "")).netloc or "").lower()
+    except ValueError:
+        return ""
 
 
 def run_live_ingestion_all(
@@ -309,18 +333,66 @@ def run_live_ingestion_all(
     transport=None,
     max_items: int = 200,
     logger=None,
+    max_workers: int = 1,
+    per_host_max: int = 2,
 ) -> List[dict]:
-    """全ソースをライブ取得する。1ソースが予期せぬ例外を投げても他を継続する（source isolation §10）。"""
+    """全ソースをライブ取得する（§2 並列取得）。
+
+    HTTP取得(fetch_feed)だけを ThreadPoolExecutor で並列化し、保存・Index・Cursor更新は
+    **メインスレッドで結果を Source ID 順に直列適用**する（SQLite/shard の単一writerを保証）。
+    per_host_max で同一ホストへの同時接続数を制限する（アクセス過多防止）。
+    max_workers<=1 のときは完全逐次（従来動作と同一）。1ソースの例外で全体を止めない。
+    """
+    from .fetcher import fetch_feed
+
     now = now or datetime.now(timezone.utc)
-    results: List[dict] = []
-    for src in sources:
+    # 適用順を決定的にする（スレッド完了順に依らない）。id が無ければ name をキーに。
+    ordered = sorted(sources, key=lambda s: str(s.get("id") or s.get("name", "")))
+
+    # ---- Phase 1: HTTP取得（並列可・書き込みなし）。cursorはfetch前に読むだけ。 ----
+    def _fetch_one(src: dict):
+        name = src["name"]
+        cur = cursor_store.get(name)
+        cur.last_fetch_started_at = _iso(now)  # 開始時刻の記録のみ（updateは適用時）
         try:
-            res = run_live_ingestion_for_source(
-                src, store, index, cursor_store, clusters, now,
-                overlap_hours=overlap_hours, timeout=timeout, retry=retry,
-                transport=transport, max_items=max_items,
-            )
-        except Exception as exc:  # noqa: BLE001  1ソースの想定外例外で全体を止めない
+            return src, fetch_feed(src, cur, timeout=timeout, retry=retry,
+                                   transport=transport, max_items=max_items)
+        except Exception as exc:  # noqa: BLE001  取得の想定外例外もsource isolation
+            from .fetcher import FetchResult
+            return src, FetchResult(status="failed", http_status=0,
+                                    error=f"{type(exc).__name__}: {str(exc)[:120]}")
+
+    fetched: Dict[str, tuple] = {}
+    if max_workers and max_workers > 1 and len(ordered) > 1:
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+
+        host_sems: Dict[str, threading.Semaphore] = {}
+        sem_lock = threading.Lock()
+
+        def _fetch_guarded(src: dict):
+            host = _host_of(src)
+            with sem_lock:
+                sem = host_sems.setdefault(host, threading.Semaphore(max(1, per_host_max)))
+            with sem:  # 同一ホストへの同時接続数を制限
+                return _fetch_one(src)
+
+        with ThreadPoolExecutor(max_workers=int(max_workers)) as ex:
+            for src, result in ex.map(_fetch_guarded, ordered):
+                fetched[str(src.get("id") or src.get("name", ""))] = (src, result)
+    else:
+        for src in ordered:
+            s, result = _fetch_one(src)
+            fetched[str(s.get("id") or s.get("name", ""))] = (s, result)
+
+    # ---- Phase 2: 適用（直列・決定的順序・単一writer） ----
+    results: List[dict] = []
+    for key in [str(s.get("id") or s.get("name", "")) for s in ordered]:
+        src, result = fetched[key]
+        try:
+            res = _apply_fetch_result(src, result, store, index, cursor_store,
+                                      clusters, now, overlap_hours)
+        except Exception as exc:  # noqa: BLE001  適用の想定外例外でも全体を止めない
             res = {"source": src.get("name", "unknown"), "status": "failed",
                    "http_status": 0, "fetched": 0, "new": 0, "duplicates": 0,
                    "error": f"{type(exc).__name__}: {str(exc)[:120]}"}

@@ -203,6 +203,31 @@ AI分析（要約・所感・因果・市場影響・シナリオ形式の未来
 > どの処理も `data/private_insights/` を読み書きしません。本文・AI所感・未来予測・送信日時は
 > 安定化処理の前後で保持されます（`tests/test_stabilization.py` で明示的に検証）。
 
+## Source Portfolio 拡張（Phase 3 Batch 1 / v0.8）
+
+150〜250ソースへ段階拡張するための基盤整備と、日米一次情報の追加（第1弾）。
+
+- **並列取得**: HTTP取得のみ `fetch:` の `max_fetch_workers`（既定6）で並列化。保存・索引・
+  Cursor更新は単一writerで直列適用（SQLite/shard競合を防ぐ）。`per_host_max_concurrency` で
+  同一ホストへの同時接続を制限。`max_fetch_workers: 1` にすると完全逐次に戻せる。
+- **候補ソースの到達性確認（重要）**: Batch 1で追加した日米一次情報は、環境の都合で到達性を
+  未確認のため **すべて `enabled: false` / `verify_status: pending`** です。本番導入前に必ず:
+
+  ```bash
+  python scripts/run_ingestion.py --verify-candidates   # 未有効の候補だけ到達性チェック
+  ```
+
+  （GitHub Actions では workflow_dispatch の `mode = verify_candidates` でも実行可）
+  OK / 304 になったソースだけ `config/sources.yaml` で `enabled: true` にしてください。
+  確認できないURLは有効化しないでください（§6）。
+- **Coverage監視**: run統計・Job Summaryに Tier1比率・日本比率・地域/カテゴリ多様性・集中度を表示。
+- **dedup**: canonical URLで http↔https・www有無を吸収（同一記事の重複すり抜けを防止）。
+- **企業開示分類**: `source_portfolio.classify_disclosure()` が決算/予想修正/自社株買い/M&A/
+  大型受注/訴訟等を語彙マッチで分類（LLM不使用）。
+
+> Private Insight（羅針盤）はこの拡張の対象外です。Source取得・保存・配信の処理は
+> `data/private_insights/` を一切読み書きしません。
+
 ## 実装フェーズ（依頼書§29準拠）
 
 - Phase A: Article Store（models/url_normalize/dedup/storage/cursor） ✅

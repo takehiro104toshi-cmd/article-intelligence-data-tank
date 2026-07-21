@@ -1,5 +1,50 @@
 # CHANGELOG
 
+## v0.8.0 (2026-07-21) — Phase 3 Batch 1（並列取得＋日米一次情報＋dedup検証）
+
+Source Portfolio拡張の第1弾。150〜250ソースへ拡張する前提となる**並列取得基盤**を
+整備し、日本・米国の**一次情報ソース**を追加（到達性未確認のため全てdisabled/pending）、
+dedup正規化を強化した。安定化Phase（v0.7.0）の機能は全て維持。Private Insightには
+一切変更を加えていない（保持をテストと実行で確認）。
+
+### 追加・変更
+
+- **並列取得（§2, §3・`ingestion.py`）**: HTTP取得(fetch_feed)を ThreadPoolExecutor で
+  並列化。保存・SQLite index・Cursor更新は**メインスレッドで Source ID 順に直列適用**
+  （単一writerを保証しDB/shard競合を防ぐ）。`per_host_max_concurrency` で同一ホストへの
+  同時接続数を制限。`max_fetch_workers<=1` で完全逐次（従来動作と同一）。1ソースの例外・
+  timeout は隔離。ベンチ: 30ソース×60msで逐次2.13s→並列0.73s（約2.9倍）。
+- **config `fetch:` ブロック**: max_fetch_workers(6)/timeout/retry/per_host_max_concurrency。
+  併せて `source_limits` / `region_balance` / `category_balance` / `daily_ingestion_targets` を追加
+  （監視・選定調整用。保存段階では全件維持）。
+- **日本・米国の一次情報 20件追加（`config/sources.yaml`）**: JP10（首相官邸/経産省/金融庁/
+  総務省統計局/内閣府/財務省/国交省/日銀統計/JPX/環境省）＋US10（SEC press/EDGAR 8-K・10-Q・
+  10-K・6-K/BEA/Census/Federal Register/FTC/FDA）。**全て enabled:false・verify_status:pending**。
+  サンドボックスはegress制限で到達性を確認できないため、§6に従い未確認ソースは有効化しない。
+  既存disabledのTreasury/BLS/EIAは重複追加せず「再有効化」で対応。
+- **Source config schema拡張**: tier / verify_status / secondary_categories / max_items_per_fetch /
+  supports_etag / supports_last_modified / rights_classification / rate_limit_policy / notes を新設フィールドとして許容。
+- **`src/tank/source_portfolio.py`（新規）**: `validate_sources`（ID/URL重複・必須field・tier/
+  source_class/trust妥当性検査）、`coverage_metrics`（Tier1比率・日本比率・region/category多様性・
+  集中度）、`coverage_gaps`（不足・偏重の警告）、`classify_disclosure`（企業開示の種別・
+  materiality分類。LLM不使用の語彙マッチ）。
+- **dedup正規化強化（§12・`url_normalize.py`）**: canonical URLで http→https を畳み、先頭 www を
+  除去。scheme差異・www有無で同一記事が別物にならないようにした（異なる記事は統合しない）。
+  ※直近の重複率85%は主にRSS再ポーリングの正当なoverlapであり、正規化バグではないと評価。
+- **検証モード**: `scripts/run_ingestion.py --verify-candidates`（未有効の候補の到達性のみ確認）。
+  workflow_dispatch に `mode`(normal/verify/verify_candidates) 入力を追加（scheduleは常にnormal）。
+- **Observability**: run統計・Job Summaryに Coverage（Tier1/日本/米国/地域・カテゴリ多様性・
+  top_region/top_category）を追加。
+
+### テスト
+
+- `tests/test_source_portfolio.py`（新規19件）: 並列＝逐次の結果一致・単一writer整合・
+  1ソース失敗隔離・決定的順序、Source検証（ID/URL重複・必須field・不正値）、実sources.yamlの
+  妥当性、pending全disabled、Coverage指標、開示分類、dedup正規化（http/https/www/slash/
+  tracking/fragment畳み込み・別記事非統合）。
+- 既存147＋新規11（実質19、既存重複調整後）＝ **158 passed**。
+- Private Insight保持は既存 test_stabilization.py で継続検証。
+
 ## v0.7.0 (2026-07-21) — Production Stabilization（exit code・日付品質・Source偏重・観測性）
 
 ライブ運用で「Package生成は成功しているのにワークフローが赤(失敗)になる」

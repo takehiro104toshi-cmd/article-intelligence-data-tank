@@ -81,6 +81,7 @@ def build_run_stats(
     quarantine_count: int = 0,
     concentration: Optional[dict] = None,
     package_source_distribution: Optional[dict] = None,
+    coverage: Optional[dict] = None,
 ) -> dict:
     successful = sum(1 for r in source_results if r.get("status") == "success")
     unchanged = sum(1 for r in source_results if r.get("status") == "unchanged")
@@ -125,6 +126,7 @@ def build_run_stats(
         "top_source_share": concentration.get("top_source_share", 0.0),
         "source_concentration": concentration.get("concentration_status", "ok"),
         "package_source_distribution": package_source_distribution or {},
+        "coverage": coverage or {},
         "package_items": package_items,
         "package_size": package_size,
         "warning_count": warnings,

@@ -664,3 +664,448 @@ sources:
     primary_category: gdp
     trust_score: 93
     fetch_interval_minutes: 120
+
+  # ============================================================
+  # Phase 3 Batch 1: 日本・米国の一次情報（primary/official）
+  # ------------------------------------------------------------
+  # ★重要★ サンドボックスはegress制限のため到達性を確認できていません。
+  # 全て enabled: false / verify_status: pending として追加しています。
+  # 本番導入前に必ず次で到達性を確認し、OKのものだけ enabled: true にしてください:
+  #     python scripts/run_ingestion.py --verify
+  # または workflow_dispatch の verify_sources=true で実行。
+  # 確認できないURLは enabled: false のまま（推測で有効化しない・§6）。
+  # tier: 1=primary/official/regulator/exchange/statistics。
+  # ============================================================
+
+  # ---------- 日本の一次情報（要 --verify） ----------
+  - id: jp_kantei_news
+    name: 首相官邸 — 新着情報
+    url: "https://www.kantei.go.jp/jp/news.rdf"
+    enabled: false
+    verify_status: pending
+    format: auto
+    source_class: primary_official
+    tier: 1
+    country: JP
+    region: Asia
+    language: ja
+    primary_category: fiscal_policy
+    secondary_categories: [regulation, macroeconomics]
+    trust_score: 95
+    fetch_interval_minutes: 120
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: gentle
+    notes: "公的一次情報。RDF/RSS想定。要到達性確認。"
+
+  - id: jp_meti_release
+    name: 経済産業省 — 報道発表
+    url: "https://www.meti.go.jp/ml_index_release_atom.xml"
+    enabled: false
+    verify_status: pending
+    format: atom
+    source_class: primary_official
+    tier: 1
+    country: JP
+    region: Asia
+    language: ja
+    primary_category: regulation
+    secondary_categories: [energy, manufacturing, trade]
+    trust_score: 95
+    fetch_interval_minutes: 120
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: gentle
+    notes: "METI公式Atom想定。要到達性確認。"
+
+  - id: jp_fsa_news
+    name: 金融庁 — 新着情報
+    url: "https://www.fsa.go.jp/fsaNewsListAll_rss2.xml"
+    enabled: false
+    verify_status: pending
+    format: rss
+    source_class: regulator
+    tier: 1
+    country: JP
+    region: Asia
+    language: ja
+    primary_category: banking
+    secondary_categories: [regulation, insurance, asset_management]
+    trust_score: 95
+    fetch_interval_minutes: 120
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: gentle
+    notes: "金融規制の一次情報。要到達性確認。"
+
+  - id: jp_stat_release
+    name: 総務省統計局 — 統計新着
+    url: "https://www.stat.go.jp/rss/index.rdf"
+    enabled: false
+    verify_status: pending
+    format: auto
+    source_class: statistics_agency
+    tier: 1
+    country: JP
+    region: Asia
+    language: ja
+    primary_category: gdp
+    secondary_categories: [inflation, employment, macroeconomics]
+    trust_score: 94
+    fetch_interval_minutes: 180
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: gentle
+    notes: "統計一次情報。要到達性確認。"
+
+  - id: jp_cao_new
+    name: 内閣府 — 新着情報
+    url: "https://www.cao.go.jp/rss/new.rdf"
+    enabled: false
+    verify_status: pending
+    format: auto
+    source_class: primary_official
+    tier: 1
+    country: JP
+    region: Asia
+    language: ja
+    primary_category: macroeconomics
+    secondary_categories: [fiscal_policy, gdp]
+    trust_score: 93
+    fetch_interval_minutes: 180
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: gentle
+    notes: "内閣府（景気・経済財政）。要到達性確認。"
+
+  - id: jp_mof_press
+    name: 財務省 — 新着情報
+    url: "https://www.mof.go.jp/rss/new.xml"
+    enabled: false
+    verify_status: pending
+    format: auto
+    source_class: primary_official
+    tier: 1
+    country: JP
+    region: Asia
+    language: ja
+    primary_category: fiscal_policy
+    secondary_categories: [trade, rates]
+    trust_score: 95
+    fetch_interval_minutes: 180
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: gentle
+    notes: "財政・国債・為替介入等の一次情報。要到達性確認。"
+
+  - id: jp_mlit_news
+    name: 国土交通省 — 報道発表
+    url: "https://www.mlit.go.jp/page/rss.rdf"
+    enabled: false
+    verify_status: pending
+    format: auto
+    source_class: primary_official
+    tier: 1
+    country: JP
+    region: Asia
+    language: ja
+    primary_category: infrastructure
+    secondary_categories: [construction, logistics, shipping]
+    trust_score: 90
+    fetch_interval_minutes: 240
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: gentle
+    notes: "インフラ・物流・建設の一次情報。要到達性確認。"
+
+  - id: jp_boj_stat
+    name: 日本銀行 — 統計・調査
+    url: "https://www.boj.or.jp/rss/release.xml"
+    enabled: false
+    verify_status: pending
+    format: auto
+    source_class: primary_official
+    tier: 1
+    country: JP
+    region: Asia
+    language: ja
+    primary_category: monetary_policy
+    secondary_categories: [rates, banking]
+    trust_score: 97
+    fetch_interval_minutes: 120
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: gentle
+    notes: "既存 boj_whatsnew とは別の統計/公表フィード想定。重複時は片方を無効化。要確認。"
+
+  - id: jp_jpx_news
+    name: 日本取引所グループ (JPX) — お知らせ
+    url: "https://www.jpx.co.jp/news/rss/index.rdf"
+    enabled: false
+    verify_status: pending
+    format: auto
+    source_class: exchange
+    tier: 1
+    country: JP
+    region: Asia
+    language: ja
+    primary_category: corporate_disclosures
+    secondary_categories: [regulation, earnings]
+    trust_score: 92
+    fetch_interval_minutes: 120
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: gentle
+    notes: "取引所公式。適時開示(TDnet)本体は公開RSS無しのため対象外（別途要検討）。要確認。"
+
+  - id: jp_env_news
+    name: 環境省 — 報道発表
+    url: "https://www.env.go.jp/rss/news.rdf"
+    enabled: false
+    verify_status: pending
+    format: auto
+    source_class: primary_official
+    tier: 1
+    country: JP
+    region: Asia
+    language: ja
+    primary_category: environment
+    secondary_categories: [energy, climate]
+    trust_score: 88
+    fetch_interval_minutes: 240
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: gentle
+    notes: "気候・環境規制の一次情報。要到達性確認。"
+
+  # ---------- 米国の一次情報（要 --verify） ----------
+  - id: us_sec_press
+    name: U.S. SEC — Press Releases
+    url: "https://www.sec.gov/news/pressreleases.rss"
+    enabled: false
+    verify_status: pending
+    format: rss
+    source_class: regulator
+    tier: 1
+    country: US
+    region: North America
+    language: en
+    primary_category: regulation
+    secondary_categories: [banking, corporate_disclosures]
+    trust_score: 96
+    fetch_interval_minutes: 120
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: sec_fair_access
+    notes: "SEC公式。User-Agent必須ポリシーに注意（既存UAで送信）。要確認。"
+
+  - id: us_edgar_8k
+    name: SEC EDGAR — Latest 8-K Filings (Atom)
+    url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&company=&dateb=&owner=include&count=100&output=atom"
+    enabled: false
+    verify_status: pending
+    format: atom
+    source_class: regulator
+    tier: 1
+    country: US
+    region: North America
+    language: en
+    primary_category: corporate_disclosures
+    secondary_categories: [earnings, corporate_earnings]
+    trust_score: 90
+    fetch_interval_minutes: 30
+    max_items_per_fetch: 100
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: sec_fair_access
+    disclosure_source: true
+    notes: "企業開示(8-K=重要事象)。getcurrent Atom。全Form無制限取得はしない。要確認。"
+
+  - id: us_edgar_10q
+    name: SEC EDGAR — Latest 10-Q Filings (Atom)
+    url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=10-Q&company=&dateb=&owner=include&count=100&output=atom"
+    enabled: false
+    verify_status: pending
+    format: atom
+    source_class: regulator
+    tier: 1
+    country: US
+    region: North America
+    language: en
+    primary_category: corporate_disclosures
+    secondary_categories: [corporate_earnings, earnings]
+    trust_score: 90
+    fetch_interval_minutes: 120
+    max_items_per_fetch: 100
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: sec_fair_access
+    disclosure_source: true
+    notes: "四半期報告。要確認。"
+
+  - id: us_edgar_10k
+    name: SEC EDGAR — Latest 10-K Filings (Atom)
+    url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=10-K&company=&dateb=&owner=include&count=100&output=atom"
+    enabled: false
+    verify_status: pending
+    format: atom
+    source_class: regulator
+    tier: 1
+    country: US
+    region: North America
+    language: en
+    primary_category: corporate_disclosures
+    secondary_categories: [corporate_earnings]
+    trust_score: 90
+    fetch_interval_minutes: 240
+    max_items_per_fetch: 100
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: sec_fair_access
+    disclosure_source: true
+    notes: "年次報告。要確認。"
+
+  - id: us_edgar_6k
+    name: SEC EDGAR — Latest 6-K Filings (Atom)
+    url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=6-K&company=&dateb=&owner=include&count=100&output=atom"
+    enabled: false
+    verify_status: pending
+    format: atom
+    source_class: regulator
+    tier: 1
+    country: US
+    region: North America
+    language: en
+    primary_category: corporate_disclosures
+    secondary_categories: [corporate_earnings]
+    trust_score: 88
+    fetch_interval_minutes: 120
+    max_items_per_fetch: 100
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: sec_fair_access
+    disclosure_source: true
+    notes: "外国民間発行体の開示。要確認。"
+
+  # ※ us_treasury / us_bls / us_eia は既存のdisabledソース(上部)に定義済みのため、
+  #   Batch 1では重複追加せず「既存の再有効化(--verify)」で対応する（§7 disabled復活）。
+
+  - id: us_census_economic
+    name: U.S. Census Bureau — Economic Indicators
+    url: "https://www.census.gov/economic-indicators/indicator.xml"
+    enabled: false
+    verify_status: pending
+    format: auto
+    source_class: statistics_agency
+    tier: 1
+    country: US
+    region: North America
+    language: en
+    primary_category: gdp
+    secondary_categories: [retail, trade, manufacturing]
+    trust_score: 93
+    fetch_interval_minutes: 240
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: gentle
+    notes: "小売売上・住宅着工・貿易統計等の一次指標。要確認。"
+
+  - id: us_bea_news
+    name: U.S. Bureau of Economic Analysis — News
+    url: "https://www.bea.gov/rss.xml"
+    enabled: false
+    verify_status: pending
+    format: auto
+    source_class: statistics_agency
+    tier: 1
+    country: US
+    region: North America
+    language: en
+    primary_category: gdp
+    secondary_categories: [macroeconomics, trade]
+    trust_score: 94
+    fetch_interval_minutes: 180
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: gentle
+    notes: "GDP・個人所得・貿易統計。要確認。"
+
+  - id: us_federal_register_energy
+    name: U.S. Federal Register — Energy Dept documents
+    url: "https://www.federalregister.gov/api/v1/documents.rss?conditions%5Bagencies%5D%5B%5D=energy-department"
+    enabled: false
+    verify_status: pending
+    format: rss
+    source_class: regulator
+    tier: 1
+    country: US
+    region: North America
+    language: en
+    primary_category: regulation
+    secondary_categories: [energy, utilities]
+    trust_score: 90
+    fetch_interval_minutes: 240
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: gentle
+    notes: "官報（省庁別RSS。agency差し替えで拡張可）。要確認。"
+
+  - id: us_ftc_press
+    name: U.S. FTC — Press Releases
+    url: "https://www.ftc.gov/feeds/press-release.xml"
+    enabled: false
+    verify_status: pending
+    format: auto
+    source_class: regulator
+    tier: 1
+    country: US
+    region: North America
+    language: en
+    primary_category: regulation
+    secondary_categories: [M&A, retail]
+    trust_score: 90
+    fetch_interval_minutes: 240
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: gentle
+    notes: "反トラスト・M&A審査・消費者保護。要確認。"
+
+  - id: us_fda_press
+    name: U.S. FDA — Press Announcements
+    url: "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml"
+    enabled: false
+    verify_status: pending
+    format: auto
+    source_class: regulator
+    tier: 1
+    country: US
+    region: North America
+    language: en
+    primary_category: healthcare
+    secondary_categories: [pharmaceuticals, biotechnology]
+    trust_score: 90
+    fetch_interval_minutes: 240
+    supports_etag: unknown
+    supports_last_modified: unknown
+    rights_classification: public
+    rate_limit_policy: gentle
+    notes: "医薬承認・リコール等。要確認。"

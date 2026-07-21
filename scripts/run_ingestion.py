@@ -103,6 +103,8 @@ def _verify(sources: List[dict], timeout: int, retry: int) -> int:
             fail += 1
             print(f"  FAIL  {src['id']:24} http={result.http_status} {result.error}  {src['url']}")
     print(f"\n到達可能: {ok} / 失敗: {fail}")
+    if ok:
+        print("→ OK/304 のソースは config/sources.yaml で enabled: true にして本番導入できます。")
     # --verify は到達性の「診断」。到達不能があってもコマンド自体は成功扱い（exit 0）。
     # exit 2 はCLI引数不正のみに限定する（§2）。
     return 0
@@ -113,6 +115,8 @@ def main(argv=None) -> int:
     parser.add_argument("--config", default=str(ROOT / "config.yaml"))
     parser.add_argument("--dry-run", action="store_true", help="取得・保存まで（配信Packageは生成しない）")
     parser.add_argument("--verify", action="store_true", help="各enabledソースの到達性のみ確認（保存しない）")
+    parser.add_argument("--verify-candidates", action="store_true",
+                        help="未有効(enabled:false)の候補ソースの到達性を確認（保存しない・§16-A）")
     args = parser.parse_args(argv)
 
     config = load_config(args.config)
@@ -124,11 +128,24 @@ def main(argv=None) -> int:
     overlap_hours = int(tank_cfg.get("overlap_hours", 48))
     hot_hours = int(tank_cfg.get("hot_hours", 72))
     max_items = int(tank_cfg.get("max_items_per_source", 200))
+    # §2 並列取得: fetch: ブロック（無ければ article_tank.max_fetch_workers を後方互換で使用）。
+    fetch_cfg = config.get("fetch", {})
+    max_fetch_workers = int(fetch_cfg.get("max_fetch_workers", tank_cfg.get("max_fetch_workers", 6)))
+    per_host_max = int(fetch_cfg.get("per_host_max_concurrency", 2))
 
     # sources_file は config ファイルのあるディレクトリを基準に解決する。
     config_dir = Path(args.config).resolve().parent
     all_sources = load_sources(config, base_dir=config_dir)
     live_sources = enabled_sources(all_sources)
+
+    if args.verify_candidates:
+        # 未有効の候補（disabled/pending含む）だけを検証する（§16-A disabled再検証・新規追加確認）。
+        candidates = [s for s in all_sources if not s.get("enabled")]
+        if not candidates:
+            print("未有効の候補ソースはありません。")
+            return 0
+        print("【候補ソースの到達性確認】OK/304 のものは enabled: true にして導入してください。\n")
+        return _verify(candidates, timeout, retry)
 
     if args.verify:
         if not live_sources:
@@ -188,6 +205,7 @@ def main(argv=None) -> int:
             live_sources, store, index, cursor_store, clusters, now,
             overlap_hours=overlap_hours, timeout=timeout, retry=retry,
             max_items=max_items, logger=_log,
+            max_workers=max_fetch_workers, per_host_max=per_host_max,
         )
         store.write_manifest()
 
@@ -228,6 +246,9 @@ def main(argv=None) -> int:
         warning_share=float(balance_cfg.get("warning_share", 0.35)),
         critical_share=float(balance_cfg.get("critical_share", 0.60)),
     )
+    # Coverage指標（Phase 3 §13, §15）: enabledソースのTier1比率・日本比率・地域/カテゴリ分布。
+    from tank.source_portfolio import coverage_metrics  # noqa: E402
+    coverage = coverage_metrics(all_sources, enabled_only=True)
 
     completed = datetime.now(timezone.utc)
 
@@ -246,6 +267,7 @@ def main(argv=None) -> int:
             retention_deleted_shards=retention_deleted_shards,
             quarantine_count=quarantine_count,
             concentration=concentration, package_source_distribution=pkg_distribution or {},
+            coverage=coverage,
         )
         save_run_stats(str(stats_dir), stats)
         return stats

@@ -43,6 +43,45 @@ publication:
   max_source_health: 100
   package_max_uncompressed_mb: 5
 
+# 並列取得（Phase 3 Batch 1 §2）。HTTP取得のみ並列化し、保存・Index・Cursor更新は
+# 単一writerで直列に行う（SQLite/shardの競合を防ぐ）。max_fetch_workers<=1で完全逐次。
+fetch:
+  max_fetch_workers: 6
+  timeout_seconds: 12
+  retry_count: 1
+  per_host_max_concurrency: 2      # 同一ホストへの同時接続数の上限（アクセス過多防止）
+
+# Candidate/Package選定段階でのソース・地域・カテゴリ占有率上限（Phase 3 §10）。
+# 保存段階では全件保持し、ここでの制御は選定段階のみに適用する。
+source_limits:
+  default_max_items_per_fetch: 100
+  high_volume_max_items_per_fetch: 300
+  max_single_source_raw_share: 0.20
+  max_single_source_candidate_share: 0.15
+  max_single_source_published_share: 0.10
+
+# 地域・カテゴリのCoverage監視（Phase 3 §4, §5）。強制削除ではなく監視・選定調整用。
+region_balance:
+  max_single_region_share: 0.35
+  warning_single_region_share: 0.30
+  minimum_japan_share: 0.12
+  minimum_us_share: 0.18
+  minimum_europe_share: 0.10
+  minimum_asia_ex_japan_share: 0.12
+
+category_balance:
+  max_single_category_share: 0.35
+  warning_single_category_share: 0.30
+  max_ai_semiconductor_share: 0.25
+
+# 平日1日あたりの取得目標（Phase 3 §1）。監視・進捗表示用（達成を強制しない）。
+daily_ingestion_targets:
+  unique_min: 800
+  unique_target: 1000
+  unique_max: 1200
+  event_clusters_target_min: 150
+  event_clusters_target_max: 300
+
 # Source偏重（source concentration）制御・観測（Production Stabilization §9）。
 # 保存段階では全記事を保持し、ここでの制御は候補・Package選定段階でのみ適用する。
 #   - warning_share / critical_share: 新規記事に占める最多ソースの比率がこの閾値を

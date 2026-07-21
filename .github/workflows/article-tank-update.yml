@@ -34,7 +34,14 @@ on:
     # 冗長化。混雑する丸い分を避けている。実際に取得〜公開されるのは変更があった
     # 時だけ（304と空diffで無駄なcommitは発生しない）。
     - cron: "8,23,38,53 * * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "実行モード（normal=通常取得 / verify=enabled到達性 / verify_candidates=未有効候補の到達性）"
+        required: false
+        type: choice
+        options: [normal, verify, verify_candidates]
+        default: normal
 
 permissions:
   contents: write
@@ -56,9 +63,18 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # mode=verify/verify_candidates は到達性の診断のみ（保存・commitしない）。
+      # 定期実行(schedule)は inputs が無いため常に normal として通常取得する。
       - name: Run ingestion and publish package
         id: ingest
-        run: python scripts/run_ingestion.py
+        env:
+          MODE: ${{ github.event.inputs.mode }}
+        run: |
+          case "${MODE:-normal}" in
+            verify)            python scripts/run_ingestion.py --verify ;;
+            verify_candidates) python scripts/run_ingestion.py --verify-candidates ;;
+            *)                 python scripts/run_ingestion.py ;;
+          esac
 
       # run_ingestion.py の終了コード2（degraded: 一部ソース失敗だが公開は成功）でも
       # GitHub Actionsはステップ失敗として後続をデフォルトでスキップしてしまうため、

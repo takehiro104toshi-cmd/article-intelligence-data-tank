@@ -79,6 +79,20 @@ def main() -> int:
         f"- package_items: {s.get('package_items',0)} / compressed_size: {s.get('package_size',0)} bytes",
     ]
 
+    cov = s.get("coverage") or {}
+    if cov.get("enabled_total"):
+        lines += [
+            "",
+            "#### Coverage（enabledソース）",
+            f"- enabled: {cov.get('enabled_total',0)} / Tier1: {cov.get('tier1_share',0)*100:.0f}% / "
+            f"一次情報: {cov.get('primary_source_share',0)*100:.0f}%",
+            f"- 日本: {cov.get('japan_share',0)*100:.0f}% / 米国: {cov.get('us_share',0)*100:.0f}% / "
+            f"地域数: {cov.get('region_diversity',0)} / カテゴリ数: {cov.get('category_diversity',0)} / "
+            f"言語数: {cov.get('language_diversity',0)}",
+            f"- top_region: {cov.get('top_region','')} ({cov.get('top_region_share',0)*100:.0f}%) / "
+            f"top_category: {cov.get('top_category','')} ({cov.get('top_category_share',0)*100:.0f}%)",
+        ]
+
     ph = _private_storage_health()
     lines += [
         "",
