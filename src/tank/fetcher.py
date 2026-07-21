@@ -22,6 +22,24 @@ USER_AGENT = "ArticleIntelligenceDataTank/1.0 (+public-rss-reader; contact: loca
 DEFAULT_TIMEOUT = 12
 DEFAULT_RETRY = 1
 
+
+def build_user_agent(name: str = "ArticleIntelligenceDataTank",
+                     contact_email: str = "",
+                     repo_url: str = "https://github.com/takehiro104toshi-cmd/article-intelligence-data-tank") -> str:
+    """SEC等の「連絡先を含むUser-Agent」要件に沿ったUA文字列を組み立てる（§6）。
+
+    SEC EDGAR のフェアアクセスポリシーは、リクエストに要求元を識別できる
+    User-Agent（会社/アプリ名＋連絡先メール）を含めることを求めており、
+    連絡先の無いUAは403で拒否されることがある。連絡先メールは環境変数/Secretで
+    与える（コードへ個人アドレスを固定しない）。未設定時は連絡先なしの汎用UAを返す
+    （呼び出し側でSEC等の厳格ソースを有効化しない判断に使う）。
+    """
+    name = (name or "ArticleIntelligenceDataTank").strip()
+    email = (contact_email or "").strip()
+    if email:
+        return f"{name}/1.0 ({email}; +{repo_url})"
+    return f"{name}/1.0 (+{repo_url}; contact: unset)"
+
 # transport(url, headers, timeout) -> (status_code:int, headers:dict, body:bytes)
 Transport = Callable[[str, dict, int], Tuple[int, dict, bytes]]
 
@@ -61,9 +79,9 @@ def _requests_transport(url: str, headers: dict, timeout: int) -> Tuple[int, dic
     return resp.status_code, dict(resp.headers), resp.content
 
 
-def _build_headers(cursor: Optional[SourceCursor]) -> dict:
+def _build_headers(cursor: Optional[SourceCursor], user_agent: Optional[str] = None) -> dict:
     headers = {
-        "User-Agent": USER_AGENT,
+        "User-Agent": user_agent or USER_AGENT,
         "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.5",
         "Accept-Encoding": "gzip, deflate",
     }
@@ -82,15 +100,19 @@ def fetch_feed(
     retry: int = DEFAULT_RETRY,
     transport: Optional[Transport] = None,
     max_items: int = 200,
+    user_agent: Optional[str] = None,
 ) -> FetchResult:
     """1ソース分のフィードを取得・解析して FetchResult を返す。例外は投げない
-    （ネットワーク障害・タイムアウトは status="failed" として返す＝source isolation）。"""
+    （ネットワーク障害・タイムアウトは status="failed" として返す＝source isolation）。
+
+    user_agent を渡すとそのUAで取得する（SEC等の連絡先付きUA要件に対応。§6）。
+    """
     url = source_cfg.get("url", "")
     if not url:
         return FetchResult(status="failed", error="no_url")
 
     transport = transport or _requests_transport
-    headers = _build_headers(cursor)
+    headers = _build_headers(cursor, user_agent=user_agent)
     attempts = max(1, int(retry) + 1)
     last_error = ""
     last_status = 0

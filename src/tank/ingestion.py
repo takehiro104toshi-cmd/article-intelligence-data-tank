@@ -335,6 +335,7 @@ def run_live_ingestion_all(
     logger=None,
     max_workers: int = 1,
     per_host_max: int = 2,
+    user_agent: Optional[str] = None,
 ) -> List[dict]:
     """全ソースをライブ取得する（§2 並列取得）。
 
@@ -356,7 +357,8 @@ def run_live_ingestion_all(
         cur.last_fetch_started_at = _iso(now)  # 開始時刻の記録のみ（updateは適用時）
         try:
             return src, fetch_feed(src, cur, timeout=timeout, retry=retry,
-                                   transport=transport, max_items=max_items)
+                                   transport=transport, max_items=max_items,
+                                   user_agent=user_agent)
         except Exception as exc:  # noqa: BLE001  取得の想定外例外もsource isolation
             from .fetcher import FetchResult
             return src, FetchResult(status="failed", http_status=0,

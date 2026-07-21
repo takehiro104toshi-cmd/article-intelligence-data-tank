@@ -1,5 +1,43 @@
 # CHANGELOG
 
+## v0.8.2 (2026-07-21) — SEC準拠User-Agent＋日本公式ソース調査（Batch 1仕上げ）
+
+Batch 1 の verify で403だった SEC EDGAR・METI 等の原因を、正式なアクセス仕様に基づいて
+特定し、対応した。日本の政府系RSSは大半が404で、調査の結果「公式RSSの廃止・移行」が
+主因と判断した（推測URLでの有効化はしていない）。
+
+### 追加・変更
+
+- **SEC準拠の連絡先付きUser-Agent（§6・`fetcher.py`）**: `build_user_agent(name, contact_email)`
+  を追加。SEC EDGAR のフェアアクセスポリシーは「要求元を識別できる連絡先(メール)を含む
+  User-Agent」を要求し、連絡先の無いUA（従来の `contact: local`）は **403で拒否**される。
+  これが EDGAR 4種・METI 等の403の主因と判断。連絡先メールはコードへ固定せず、
+  `config.http.contact_email_env`（既定 `DATA_TANK_CONTACT_EMAIL`）で指定した環境変数/Secret
+  から取得する。`fetch_feed(..., user_agent=)` を追加し、取得・verifyの全経路へUAを伝播。
+  未設定時は連絡先なしUAのまま警告を出し、他ソースの取得は継続する（EDGARは無理に有効化しない）。
+- **config `http:` ブロック** + workflowに `DATA_TANK_CONTACT_EMAIL` Secret のenv渡しを追加。
+- **403ソースの再verify導線**: EDGAR 8-K/10-Q/10-K/6-K と METI の notes に「連絡先付きUA設定後に
+  再verify要」を明記（enabled: false のまま維持）。ブラウザ偽装・UAなりすまし・アクセス制限
+  回避は一切しない（§6厳守）。
+- **並列fetch**: v0.8.0で完成済みであることを確認（ThreadPoolExecutor＋per_host_max＋
+  単一writer直列適用＋決定的順序）。今回UA伝播に対応。
+
+### 日本公式ソース調査結果（§4）
+
+前回404だった日本の政府系9件を精査した。日本の中央省庁はここ数年でRSS配信を縮小・廃止
+する傾向があり、多くが機械可読フィードを提供しなくなっている（首相官邸・総務省統計局・
+内閣府・国交省・環境省 等）。EDINET・e-Stat は **JSON API のみ**でRSS/Atom非対応のため、
+本フェッチャー（RSS/Atom専用）の対象外。JSON対応アダプタは Batch 2以降で検討する。
+JPX・財務省・日銀統計は掲載URLが変更された可能性があり、公式サイトからの配信URL確認が
+必要（推測での有効化はしない）。**現状、確実に到達確認できた日本公式ソースは金融庁(FSA)のみ**。
+
+### テスト
+
+- SEC UA関連4件を追加（連絡先付きUA / 未設定表示 / fetch_feedのUA送信 / 403はretryしない）。
+- 159→**163 passed**。
+- 手動2回実行（並列＋UA経路・stub transport）: Run#1 healthy/exit0、Run#2 degraded/exit0、
+  Private Insight は両run前後で保持を確認。
+
 ## v0.8.1 (2026-07-21) — Batch 1候補の到達性確認結果を反映（enabled 33→45）
 
 GitHub Actions の `verify_candidates` モードで、Batch 1由来20件＋既存disabled 15件の

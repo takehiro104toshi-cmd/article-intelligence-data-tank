@@ -733,7 +733,7 @@ sources:
     supports_last_modified: unknown
     rights_classification: public
     rate_limit_policy: gentle
-    notes: "METI公式Atom想定。要到達性確認。"
+    notes: "METI公式Atom想定。要到達性確認。 ★2026-07-21 verify: 403。連絡先付きUA設定後に再verify要（404の他JP省庁とは異なりURLは存在）。"
 
   - id: jp_fsa_news
     name: 金融庁 — 新着情報
@@ -946,7 +946,7 @@ sources:
     rights_classification: public
     rate_limit_policy: sec_fair_access
     disclosure_source: true
-    notes: "企業開示(8-K=重要事象)。getcurrent Atom。全Form無制限取得はしない。要確認。"
+    notes: "企業開示(8-K=重要事象)。getcurrent Atom。全Form無制限取得はしない。要確認。 ★2026-07-21 verify: 403（連絡先付きUA未設定が原因の可能性大）。DATA_TANK_CONTACT_EMAIL設定後に再verify要。"
 
   - id: us_edgar_10q
     name: SEC EDGAR — Latest 10-Q Filings (Atom)
@@ -969,7 +969,7 @@ sources:
     rights_classification: public
     rate_limit_policy: sec_fair_access
     disclosure_source: true
-    notes: "四半期報告。要確認。"
+    notes: "四半期報告。要確認。 ★2026-07-21 verify: 403（連絡先付きUA未設定が原因の可能性大）。DATA_TANK_CONTACT_EMAIL設定後に再verify要。"
 
   - id: us_edgar_10k
     name: SEC EDGAR — Latest 10-K Filings (Atom)
@@ -992,7 +992,7 @@ sources:
     rights_classification: public
     rate_limit_policy: sec_fair_access
     disclosure_source: true
-    notes: "年次報告。要確認。"
+    notes: "年次報告。要確認。 ★2026-07-21 verify: 403（連絡先付きUA未設定が原因の可能性大）。DATA_TANK_CONTACT_EMAIL設定後に再verify要。"
 
   - id: us_edgar_6k
     name: SEC EDGAR — Latest 6-K Filings (Atom)
@@ -1015,7 +1015,7 @@ sources:
     rights_classification: public
     rate_limit_policy: sec_fair_access
     disclosure_source: true
-    notes: "外国民間発行体の開示。要確認。"
+    notes: "外国民間発行体の開示。要確認。 ★2026-07-21 verify: 403（連絡先付きUA未設定が原因の可能性大）。DATA_TANK_CONTACT_EMAIL設定後に再verify要。"
 
   # ※ us_treasury / us_bls / us_eia は既存のdisabledソース(上部)に定義済みのため、
   #   Batch 1では重複追加せず「既存の再有効化(--verify)」で対応する（§7 disabled復活）。

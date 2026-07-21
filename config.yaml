@@ -51,6 +51,14 @@ fetch:
   retry_count: 1
   per_host_max_concurrency: 2      # 同一ホストへの同時接続数の上限（アクセス過多防止）
 
+# HTTP User-Agent（Phase 3 Batch 1 §6）。SEC EDGAR等は「要求元を識別できる連絡先付き
+# User-Agent」を要求し、連絡先の無いUAは403で拒否される。連絡先メールはコードへ固定せず、
+# contact_email_env で指定した環境変数/Secret（既定 DATA_TANK_CONTACT_EMAIL）から取得する。
+# 未設定でも他ソースの取得は継続する（SEC等の厳格ソースだけ403になり得る）。
+http:
+  user_agent_name: "ArticleIntelligenceDataTank"
+  contact_email_env: "DATA_TANK_CONTACT_EMAIL"
+
 # Candidate/Package選定段階でのソース・地域・カテゴリ占有率上限（Phase 3 §10）。
 # 保存段階では全件保持し、ここでの制御は選定段階のみに適用する。
 source_limits:

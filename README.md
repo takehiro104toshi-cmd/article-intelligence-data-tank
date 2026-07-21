@@ -224,6 +224,11 @@ AI分析（要約・所感・因果・市場影響・シナリオ形式の未来
 - **dedup**: canonical URLで http↔https・www有無を吸収（同一記事の重複すり抜けを防止）。
 - **企業開示分類**: `source_portfolio.classify_disclosure()` が決算/予想修正/自社株買い/M&A/
   大型受注/訴訟等を語彙マッチで分類（LLM不使用）。
+- **SEC EDGAR用の連絡先付きUser-Agent**: SEC EDGAR等は「連絡先メールを含むUser-Agent」を
+  要求し、無いと403になる。GitHubリポジトリの Secrets に `DATA_TANK_CONTACT_EMAIL`（自分の
+  連絡先メール）を登録すると、取得時のUAにそのメールが付与され、`mode=verify_candidates` で
+  EDGAR/METI等を再確認できる。未設定でも他ソースの取得は継続する（EDGARだけ403になり得る）。
+  ブラウザ偽装・UAなりすまし・アクセス制限回避は一切行わない。
 
 > Private Insight（羅針盤）はこの拡張の対象外です。Source取得・保存・配信の処理は
 > `data/private_insights/` を一切読み書きしません。

@@ -133,6 +133,48 @@ def test_url_normalization_keeps_distinct_articles_distinct():
     assert a != b                                   # 別記事は統合しない
 
 
+# ---------- SEC準拠User-Agent（§6, §17-9〜19） ----------
+
+def test_user_agent_includes_contact_when_set():
+    from tank.fetcher import build_user_agent
+    ua = build_user_agent("ArticleIntelligenceDataTank", "ops@example.com")
+    assert "ops@example.com" in ua                      # 連絡先が含まれる（SEC要件）
+    assert ua.startswith("ArticleIntelligenceDataTank/")
+
+
+def test_user_agent_marks_unset_when_no_contact():
+    from tank.fetcher import build_user_agent
+    ua = build_user_agent("ArticleIntelligenceDataTank", "")
+    assert "contact: unset" in ua                       # 未設定を明示（SEC厳格ソースは有効化しない判断材料）
+
+
+def test_fetch_feed_sends_custom_user_agent():
+    from tank.fetcher import fetch_feed
+    seen = {}
+
+    def transport(url, headers, timeout):
+        seen["ua"] = headers.get("User-Agent", "")
+        return 200, {}, _rss([("t", "https://h/a")])
+
+    fetch_feed({"url": "https://sec.example/f"}, transport=transport,
+               user_agent="ArticleIntelligenceDataTank/1.0 (ops@example.com; +repo)")
+    assert seen["ua"] == "ArticleIntelligenceDataTank/1.0 (ops@example.com; +repo)"
+
+
+def test_fetch_feed_403_is_no_retry_failed():
+    """SEC等の403は再試行せず failed を返す（§6: 無理な再試行・回避をしない）。"""
+    from tank.fetcher import fetch_feed
+    calls = {"n": 0}
+
+    def transport(url, headers, timeout):
+        calls["n"] += 1
+        return 403, {}, b""
+
+    r = fetch_feed({"url": "https://sec.example/f"}, transport=transport, retry=2)
+    assert r.status == "failed" and r.http_status == 403
+    assert calls["n"] == 1                               # 403はretryしない
+
+
 # ---------- 並列取得（§17-1〜9） ----------
 
 def _rss(items):

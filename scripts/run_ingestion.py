@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -32,7 +33,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
 from tank.cursor import CursorStore  # noqa: E402
-from tank.fetcher import fetch_feed  # noqa: E402
+from tank.fetcher import build_user_agent, fetch_feed  # noqa: E402
 from tank.index import ArticleIndex  # noqa: E402
 from tank.ingestion import rebuild_index_from_store, run_live_ingestion_all  # noqa: E402
 from tank.market_reaction import MarketReactionStore  # noqa: E402
@@ -87,12 +88,13 @@ def _load_hot_articles(store: ArticleStore, now: datetime, hot_hours: int, cap: 
     return out
 
 
-def _verify(sources: List[dict], timeout: int, retry: int) -> int:
+def _verify(sources: List[dict], timeout: int, retry: int, user_agent: str = "") -> int:
     """各enabledソースへ1回だけアクセスし、到達性を報告する（保存しない・§6の事前確認用）。"""
     print(f"到達性チェック: {len(sources)} ソース\n")
     ok = fail = 0
     for src in sources:
-        result = fetch_feed(src, cursor=None, timeout=timeout, retry=retry)
+        result = fetch_feed(src, cursor=None, timeout=timeout, retry=retry,
+                            user_agent=user_agent or None)
         if result.status == "ok":
             ok += 1
             print(f"  OK    {src['id']:24} items={len(result.articles):<4} http={result.http_status} {src['url']}")
@@ -133,6 +135,19 @@ def main(argv=None) -> int:
     max_fetch_workers = int(fetch_cfg.get("max_fetch_workers", tank_cfg.get("max_fetch_workers", 6)))
     per_host_max = int(fetch_cfg.get("per_host_max_concurrency", 2))
 
+    # §6 SEC等の「連絡先付きUser-Agent」要件: http: ブロックの user_agent_name と、
+    # contact_email_env（既定 DATA_TANK_CONTACT_EMAIL）で指定した環境変数/Secretから
+    # 連絡先メールを取得してUAを組み立てる。コードへ個人メールを固定しない。
+    http_cfg = config.get("http", {})
+    contact_email = os.environ.get(http_cfg.get("contact_email_env", "DATA_TANK_CONTACT_EMAIL"), "")
+    user_agent = build_user_agent(
+        name=http_cfg.get("user_agent_name", "ArticleIntelligenceDataTank"),
+        contact_email=contact_email,
+    )
+    if not contact_email:
+        print("::warning:: 連絡先メール(DATA_TANK_CONTACT_EMAIL)が未設定です。SEC/EDGАР等の"
+              "連絡先付きUA必須ソースは403になる可能性があります（他ソースの取得は継続）。")
+
     # sources_file は config ファイルのあるディレクトリを基準に解決する。
     config_dir = Path(args.config).resolve().parent
     all_sources = load_sources(config, base_dir=config_dir)
@@ -145,13 +160,13 @@ def main(argv=None) -> int:
             print("未有効の候補ソースはありません。")
             return 0
         print("【候補ソースの到達性確認】OK/304 のものは enabled: true にして導入してください。\n")
-        return _verify(candidates, timeout, retry)
+        return _verify(candidates, timeout, retry, user_agent=user_agent)
 
     if args.verify:
         if not live_sources:
             print("enabled なソースがありません（config/sources.yaml を確認してください）。")
             return 0
-        return _verify(live_sources, timeout, retry)
+        return _verify(live_sources, timeout, retry, user_agent=user_agent)
 
     now = datetime.now(timezone.utc)
     run_id = new_run_id(now)
@@ -206,6 +221,7 @@ def main(argv=None) -> int:
             overlap_hours=overlap_hours, timeout=timeout, retry=retry,
             max_items=max_items, logger=_log,
             max_workers=max_fetch_workers, per_host_max=per_host_max,
+            user_agent=user_agent,
         )
         store.write_manifest()
 
