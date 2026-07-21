@@ -19,5 +19,6 @@
     "newest": "2026-07-21T12:02:57.328920+00:00"
   },
   "publication_status": "success",
-  "package_file": "intelligence_package.json.gz"
+  "package_file": "intelligence_package.json.gz",
+  "role": "last_known_good"
 }
