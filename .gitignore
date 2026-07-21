@@ -22,6 +22,11 @@ data/article_store/indexes/*
 data/article_store/private/*
 !data/article_store/private/.gitkeep
 
+# Rashinban Private Insight Vault: private保存領域全体（raw本文・分析・索引）。
+# 本リポジトリはPublicのため、この配下は絶対にcommitしない。
+data/private_insights/*
+!data/private_insights/.gitkeep
+
 # 破損シャードの隔離（デバッグ用ローカル）。
 data/article_store/quarantine/*
 !data/article_store/quarantine/.gitkeep

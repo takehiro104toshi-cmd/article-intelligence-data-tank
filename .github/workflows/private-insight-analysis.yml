@@ -1,0 +1,45 @@
+name: Private Insight Analysis
+
+# Rashinban Private Insight Vault の分析パイプライン。
+# Cloudflare Worker（非公開KV）に溜まった未分析のprivate記事を取得し、
+# 分析結果と公開可能な派生情報だけをWorkerへ返す。
+#
+# ★セキュリティ（Publicリポジトリのため厳守）:
+#   - 記事本文はこのジョブのメモリのみを通過し、リポジトリへは一切コミットしない
+#   - ログには件数・IDのみを出力し、本文・タイトル・分析内容を出力しない
+#   - Secret（INSIGHT_API_URL / INSIGHT_API_TOKEN / ANTHROPIC_API_KEY）は
+#     GitHub Actions Secrets にのみ保管する
+#   - Secret未設定の場合、スクリプトは静かに正常終了する（既存機能に影響なし）
+
+on:
+  schedule:
+    - cron: "11,41 * * * *"   # 30分おき（丸い分を避ける）。間引かれても次回で回収
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-insight-analysis
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Analyze queued private insights
+        env:
+          INSIGHT_API_URL: ${{ secrets.INSIGHT_API_URL }}
+          INSIGHT_API_TOKEN: ${{ secrets.INSIGHT_API_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PRIVATE_INSIGHT_MODEL: ${{ secrets.PRIVATE_INSIGHT_MODEL }}
+        run: python scripts/run_private_insight_analysis.py

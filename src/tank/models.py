@@ -38,6 +38,12 @@ class Article:
     fetched_at_jst: str = ""
     first_seen_at: str = ""
     last_seen_at: str = ""
+    # 日付品質（Production Stabilization §7）:
+    #   published_at が未来/超過去/解析不能で fetched_at へ補正された場合 True。
+    #   raw_published_at には元フィードの公開日時文字列をそのまま保持し、後から検証可能にする。
+    #   ※記事は破棄せず補正のみ行う（データ損失を避ける）。
+    date_inferred: bool = False
+    raw_published_at: str = ""
 
     # 分類
     primary_category: str = ""

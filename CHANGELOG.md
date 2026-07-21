@@ -1,5 +1,94 @@
 # CHANGELOG
 
+## v0.7.0 (2026-07-21) — Production Stabilization（exit code・日付品質・Source偏重・観測性）
+
+ライブ運用で「Package生成は成功しているのにワークフローが赤(失敗)になる」
+「SQLite索引を毎回全再構築する」「2008年など異常日付でシャードが削除される」
+といった不安定要因を、最小差分で整えた。新規機能の大規模追加はしていない。
+Private Insight（羅針盤）には一切変更を加えていない（本文・AI所感・未来予測・
+送信日時が安定化処理の前後で保持されることをテストと実行で確認済み）。
+
+### 修正・追加
+
+- **Exit code / run_status（§2, §4）**: run_ingestion.py の終了コードを是正。
+  Package公開が成功していれば一部ソース失敗(403等)・新着0でも **exit 0**。
+  致命的障害(全ソース失敗かつ既存Packageなし/検証失敗)のみ **exit 1**。
+  exit 2 はCLI引数不正のみ（degradedを2で表さない）。`run_stats.compute_run_status`/
+  `resolve_exit_code` を追加し、run_status(healthy/degraded/failed)を統計・ログ・
+  Summaryへ出力。全ソース失敗でも既存の有効Packageがあれば degraded / exit 0 で維持。
+- **日付品質ガード（§7・新規 `date_quality.py`）**: RSS/Atomのpublished_atが
+  未来(>24h)/超過去(>20年)/解析不能なら、記事を**破棄せず** fetched_at へ補正し
+  `date_inferred=true` を記録。元の公開日時文字列を `raw_published_at` として保持
+  （後から検証可能）。これにより最近の記事が異常年のシャードへ紛れ込み、retentionで
+  誤削除されるのを防ぐ。`models.Article` に2フィールド追加、`feed_parser` が
+  元日時文字列(`published_raw`)を渡すよう拡張。
+- **索引の観測性・retention窓限定（§5）**: SQLite索引の再構築件数・所要秒数を
+  ログ＆統計へ記録。再構築対象を retention 窓内のシャードに限定し、増加に伴う
+  全再構築の遅延を抑える（索引はシャードから再構築可能な派生データ）。
+- **Source偏重（§9・新規 `source_balance.py`）**: 最多ソースの新規占有率・
+  concentration_status(ok/warning/critical)・配信Packageのソース別分布を観測して
+  Summaryへ表示。**保存段階では全件保持**し、偏重制御は候補・Package選定段階
+  （`diversity.select_diverse` の占有率上限、既定20%）でのみ適用。
+- **Package保護（§12）**: `publish_package` が検証済みPackageのコピーを
+  `published/latest/last_known_good/` へ複製（latestは従来どおり atomic replace で
+  壊れない。加えて直前正常版を明示的にバックアップ）。
+- **Observability（§15・新規 `scripts/write_summary.py`）**: latest_run.json から
+  run_status・取得・保存・品質・配信・Private Insight storage health を Job Summary へ
+  整形表示（Private Insightは件数と健全性のみ・本文/タイトルは一切出さない）。
+- **config**: `source_balance:` / `date_quality:` ブロックを追加。
+
+### テスト
+
+- `tests/test_stabilization.py`（新規17件）: exit status/run_status マトリクス、
+  日付品質(正常/欠損/未来/20年超/元文字列保持/誤解析記事が当日シャードへ)、
+  Source偏重観測、既存Package判定、last-known-good、**Private Insight保持
+  （retention実行前後で本文・AI所感・未来予測・送信日時が不変）**。
+- 130（既存）＋17（新規）＝ **147 passed**。
+- 手動2回実行（フェッチ層のみstub・他は本物のコードパス）:
+  Run#1 = healthy/exit 0（新規8件・Package公開・LKG生成）、
+  Run#2 = degraded/exit 0（304×2＋403×1・新着0・Package維持）、
+  Private Insight は両run前後で保持を確認。
+
+## v0.6.0 (2026-07-20) — Rashinban Private Insight Vault（private記事の保管・AI分析）
+
+daily-market-briefから転送された記事本文を非公開領域で分析し、allowlist済みの
+派生情報だけを返す機能。本文の正式保存先はCloudflare Worker + KV（非公開）のみで、
+このPublicリポジトリには本文・分析生データを一切コミットしない。
+
+### 追加
+
+- `src/tank/private_insight.py`（新規）: `PrivateInsightRecord`/`ForecastRecord`
+  dataclass、`LocalPrivateInsightStore`（raw/analysis/index分離・.gitignore領域専用）、
+  `intake()`（サーバー側タイムスタンプ・本文ハッシュ重複検知・空/超過本文の拒否）、
+  `LocalRuleBasedFallbackAdapter`（テーマ別プレイブック: 電力/半導体/AI/金融政策/
+  原油/防衛/為替 → 確認指標・無効化条件・恩恵/逆風セクター）、
+  `AnthropicAnalysisAdapter`（ANTHROPIC_API_KEYがある場合のみ）、
+  `analyze_record()`（LLM失敗時はルールベースへフォールバック）、
+  `build_forecasts()`（base/upside/downside/tail_riskのシナリオ形式・
+  確信度上限0.60・invalidation trigger必須・次回検証日つき）、
+  `build_derived_summary()`（allowlist方式。本文・長文引用・認証情報・内部エラーは
+  構造的に含められない。禁止キー検査つき）、
+  `sync_and_analyze_from_worker()`（Worker queue取得→分析→結果送信）。
+- `scripts/run_private_insight_analysis.py`（新規）: 分析CLI。
+  Secrets未設定なら何もせず正常終了。ログには件数とIDのみ出力（本文は出さない）。
+- `.github/workflows/private-insight-analysis.yml`（新規）: 毎時 :11/:41 に分析実行。
+  Secrets `INSIGHT_API_URL` / `INSIGHT_API_TOKEN`（必須）、
+  `ANTHROPIC_API_KEY` / `PRIVATE_INSIGHT_MODEL`（任意）。
+- `config.yaml`: `private_insight:` / `private_insight_analysis:` ブロック
+  （確信度上限: article_based_hypothesis 0.60 / historically_supported 0.75 /
+  market_confirmed 0.85 / speculative 0.40）。
+- `.gitignore`: `data/private_insights/*` を除外（`.gitkeep`のみ許可）。
+  本文がgit管理下へ入らないことを構造的に保証。
+- `README.md`: 機能説明と有料記事の利用規約注意（本文はユーザー個人のprivate資料
+  として扱い、規約適合はユーザー自身が確認する）を追記。
+- `tests/test_private_insight.py`（新規12件）: intake・重複検知・タイトル
+  フォールバックの本文非漏えい・派生summaryの禁止キー・シナリオ生成・
+  確信度上限・ルールベース分析を検証。
+
+### pytest
+
+130 passed（既存118＋新規12）。
+
 ## v0.5.2 (2026-07-20) — scheduled実行の間引き対策（1時間に4回へ冗長化）
 
 v0.5.1で0分→17分にずらしたところ、17分の枠は実際に発火するようになった（22:17の

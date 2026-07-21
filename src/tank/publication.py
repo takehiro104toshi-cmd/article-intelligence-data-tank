@@ -46,6 +46,7 @@ DEFAULT_LIMITS = {
     "max_historical_matches": 20,
     "max_source_health": 100,
     "package_max_uncompressed_mb": 5,
+    "max_published_source_share": 0.20,
 }
 
 _RISK_CATEGORIES = {
@@ -120,12 +121,14 @@ def _score_article(article: Article, has_reaction: bool, reaction_magnitude: flo
     )
 
 
-def build_hot_articles(articles: List[Article], clusters: dict, reaction_lookup: dict, now: datetime, limit: int) -> List[dict]:
+def build_hot_articles(articles: List[Article], clusters: dict, reaction_lookup: dict,
+                       now: datetime, limit: int, max_source_share: float = 0.25) -> List[dict]:
     for a in articles:
         has_reaction = reaction_lookup.get(a.event_cluster_id, (False, 0.0))[0]
         magnitude = reaction_lookup.get(a.event_cluster_id, (False, 0.0))[1]
         a._retrieval_score = _score_article(a, has_reaction, magnitude, now)  # type: ignore[attr-defined]
-    selected = select_diverse(articles, target_count=limit)
+    # §9: Package選定段階でのみ、同一ソースの占有率に上限を課す（保存は全件維持）。
+    selected = select_diverse(articles, target_count=limit, max_source_share=max_source_share)
     return [_public_article_view(a) for a in selected]
 
 
@@ -224,7 +227,9 @@ def build_package(
         "generated_at_utc": now.astimezone(timezone.utc).isoformat(),
         "generated_at_jst": now.astimezone(timezone(timedelta(hours=9))).isoformat(),
         "tank_status": tank_status,
-        "hot_articles": build_hot_articles(list(articles), clusters, reaction_lookup, now, limits["max_hot_articles"]),
+        "hot_articles": build_hot_articles(
+            list(articles), clusters, reaction_lookup, now, limits["max_hot_articles"],
+            max_source_share=limits.get("max_published_source_share", 0.25)),
         "global_drivers": build_global_drivers(clusters, reaction_lookup, limits["max_global_drivers"]),
         "market_reactions": build_market_reactions_view(clusters, reaction_store, limits["max_market_reactions"]),
         "risk_radar": build_risk_radar(clusters, limits["max_risk_items"]),
@@ -325,4 +330,34 @@ def publish_package(package: dict, output_dir: str) -> dict:
         if os.path.exists(tmp2):
             os.remove(tmp2)
 
+    # §12/§13: last-known-good を保持する。検証済みで正常公開できたPackageのコピーをLKGへ複製。
+    # 次回runでの新Package生成が失敗しても、latest は atomic replace のため壊れず、
+    # さらに直前の正常版を last_known_good/ から復元できる（restore用の明示的バックアップ）。
+    try:
+        _write_last_known_good(out_dir, compressed, manifest)
+    except OSError:
+        pass  # LKG保存失敗は致命的でない（latestは既に正常公開済み）。
+
     return manifest
+
+
+def _write_last_known_good(out_dir: Path, compressed: bytes, manifest: dict) -> None:
+    """検証済みPackageのコピーを last_known_good/ へ atomic 保存する。"""
+    lkg_dir = out_dir / "last_known_good"
+    lkg_dir.mkdir(parents=True, exist_ok=True)
+    lkg_manifest = {**manifest, "role": "last_known_good"}
+    for name, data, mode in (
+        ("intelligence_package.json.gz", compressed, "wb"),
+        ("manifest.json", json.dumps(lkg_manifest, ensure_ascii=False, indent=2).encode("utf-8"), "wb"),
+    ):
+        dest = lkg_dir / name
+        fd, tmp = tempfile.mkstemp(dir=str(lkg_dir), prefix=".lkg-", suffix=".tmp")
+        try:
+            with os.fdopen(fd, mode) as f:
+                f.write(data)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, dest)
+        finally:
+            if os.path.exists(tmp):
+                os.remove(tmp)

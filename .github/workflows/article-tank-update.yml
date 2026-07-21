@@ -83,15 +83,9 @@ jobs:
             done
           fi
 
+      # run統計(latest_run.json)から run_status・取得・保存・品質・配信・
+      # Private Insight storage health を Summary へ整形表示する（§15 Observability）。
+      # Private Insight は件数・storage healthのみで、本文・タイトルは一切出さない。
       - name: Write job summary
         if: always()
-        run: |
-          {
-            echo "### Article Tank Update 実行結果"
-            echo ""
-            if [ -f published/latest/manifest.json ]; then
-              echo "- ✅ published/latest/manifest.json 生成"
-            else
-              echo "- ❌ published/latest/manifest.json が見つかりません"
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+        run: python scripts/write_summary.py >> "$GITHUB_STEP_SUMMARY" || true

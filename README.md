@@ -152,6 +152,57 @@ external_intelligence:
 
 （GitHub Pages を有効にした場合は Pages の公開URLに置き換えてください。)
 
+## Rashinban Private Insight Vault（private記事の保管・分析 / v0.6）
+
+daily-market-brief のレポート画面から転送された記事本文を、**非公開領域**で
+AI分析（要約・所感・因果・市場影響・シナリオ形式の未来予測・検証条件）する機能。
+
+- 本文の正式な保存先は **Cloudflare Worker + KV（非公開）のみ**。このリポジトリは
+  Public のため、本文・分析生データは **絶対に git 管理下へ置かない**。
+  `data/private_insights/` は `.gitignore` で除外済み（Actionsランナー上の
+  一時作業領域としてのみ使用）。
+- 公開されるのは `build_derived_summary()` が生成する **allowlist済みの派生情報のみ**
+  （テーマ・シナリオ・確認指標・検証日など）。本文・長文引用・認証情報・内部エラーは
+  構造的に含められない。
+- 分析は `.github/workflows/private-insight-analysis.yml`（毎時 :11/:41）が
+  Worker の queue を取得して実行。Secrets `INSIGHT_API_URL` / `INSIGHT_API_TOKEN`
+  が未設定なら**何もせず正常終了**する（既存機能に影響なし）。
+  `ANTHROPIC_API_KEY` があればLLM分析、無ければルールベース分析で動く。
+- 未来予測は断定ではなく **シナリオ形式**（base/upside/downside/tail_risk）で、
+  確信度に上限（記事1本のみ由来: 0.60）と **無効化条件（invalidation trigger）** を必ず付ける。
+
+> **有料記事の取り扱いについての注意**: 転送される本文（例: 日経電子版の記事）は、
+> ユーザー本人が正当に購読・取得した**個人的なprivate資料**として非公開保存する
+> 前提です。各媒体の利用規約上どこまで許されるか（私的複製の範囲等）は媒体ごとに
+> 異なるため、**ご自身で利用規約を確認**してください。本システムは本文を公開領域へ
+> 出さない設計ですが、規約適合性を保証するものではありません。
+
+## 運用の安定化（Production Stabilization / v0.7）
+
+継続運用で壊れにくくするための整備。詳細は CHANGELOG を参照。
+
+- **終了コードの意味**: `0` = healthy または degraded（有効なPackageがあり利用可能）。
+  一部ソースが403/429/timeout・新着0でも Package が公開できていれば 0（ワークフローは
+  緑のまま）。`1` = failed（全ソース失敗かつ既存Packageなし／Package検証失敗などの致命
+  障害のみ）。`2` = CLI引数不正のみ。GitHub Actions の Job Summary に
+  `HEALTHY / DEGRADED / FAILED` と主要指標が表示される。
+- **日付品質**: RSS/Atomの published_at が未来/20年超過去/解析不能な場合、記事は破棄せず
+  `fetched_at` へ補正し `date_inferred=true`・元文字列 `raw_published_at` を保持する。
+  異常日付の記事が古いシャードへ紛れて retention に誤削除されるのを防ぐ。
+- **索引**: SQLite索引はシャード(=source of truth)から再構築可能な派生データ。GitHub
+  Actionsのcheckoutには含まれない（.gitignore）ため空なら再構築するが、retention窓内に
+  限定し、再構築の件数・秒数をログ表示する。索引が消えても記事は失われない。
+- **Source偏重**: 保存は全件保持。配信Package・候補選定の段階でのみ、同一ソースの占有率に
+  上限（`source_balance.max_published_share`）を課す。集中度は Summary に表示。
+- **Package保護**: `published/latest/` は atomic replace で壊れない。加えて直前の正常版を
+  `published/latest/last_known_good/` へ複製する。
+- **復旧**: 索引を作り直したい場合は `python scripts/run_ingestion.py`（空なら自動再構築）。
+  到達性だけ確認したい場合は `--verify`。
+
+> **Private Insight（羅針盤）はこの安定化の対象外**です。取得・保存・配信・retention の
+> どの処理も `data/private_insights/` を読み書きしません。本文・AI所感・未来予測・送信日時は
+> 安定化処理の前後で保持されます（`tests/test_stabilization.py` で明示的に検証）。
+
 ## 実装フェーズ（依頼書§29準拠）
 
 - Phase A: Article Store（models/url_normalize/dedup/storage/cursor） ✅

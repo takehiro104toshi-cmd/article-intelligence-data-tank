@@ -10,10 +10,12 @@
 enabled: true のソースだけを実際にHTTP取得する。1ソースの障害では全体を止めず、
 全ソース障害時は既存の published/latest/ を空Packageで上書きしない（§10）。
 
-終了コード:
-    0 = 成功（enabledソースが全て成功/未更新、Package公開済み）
-    2 = degraded（一部ソース失敗だが公開データはありPackage公開）
-    1 = 失敗（全ソース失敗で非公開、またはPackage生成失敗）
+終了コード（Production Stabilization §2, §4）:
+    0 = healthy または degraded（有効なPackageがあり、Data Tankとして利用可能）
+        ・一部ソースが403/429/timeout/500 でも、Packageが公開できていれば 0。
+        ・新着0件・全件重複・market_reaction 0 でも、既存/新規Packageが有効なら 0。
+    1 = failed（新旧どちらのPackageも利用不能：全ソース失敗で非公開、Package生成/検証失敗）。
+    2 = CLI引数不正のみ（argparse が自動で返す。degraded を 2 で表さない）。
 """
 from __future__ import annotations
 
@@ -36,7 +38,10 @@ from tank.ingestion import rebuild_index_from_store, run_live_ingestion_all  # n
 from tank.market_reaction import MarketReactionStore  # noqa: E402
 from tank.publication import build_package, publish_package  # noqa: E402
 from tank.quality import build_quality_metrics, build_tank_status  # noqa: E402
-from tank.run_stats import build_run_stats, new_run_id, save_run_stats  # noqa: E402
+from tank.run_stats import (  # noqa: E402
+    build_run_stats, compute_run_status, new_run_id, resolve_exit_code, save_run_stats,
+)
+from tank.source_balance import package_source_distribution, source_concentration  # noqa: E402
 from tank.source_config import enabled_sources, load_sources  # noqa: E402
 from tank.storage import ArticleStore  # noqa: E402
 
@@ -45,6 +50,30 @@ _JST = timezone(timedelta(hours=9))
 
 def load_config(path: str) -> dict:
     return yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+
+
+def _existing_package_is_valid(published_dir: Path) -> bool:
+    """既存の published/latest/ に、正常公開済みの有効なPackageがあるか判定する（§4, §12）。
+
+    manifest.json が publication_status=success で、gz本体が存在し gzip展開・JSON parse
+    できることを軽量に確認する。全ソース失敗時に「既存Packageを維持してdegraded/exit 0」と
+    するか「failed/exit 1」とするかの分岐に使う。
+    """
+    import gzip as _gzip
+
+    manifest_path = Path(published_dir) / "manifest.json"
+    gz_path = Path(published_dir) / "intelligence_package.json.gz"
+    if not manifest_path.exists() or not gz_path.exists():
+        return False
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("publication_status") != "success":
+            return False
+        with _gzip.open(gz_path, "rb") as f:
+            json.loads(f.read().decode("utf-8"))  # 展開＋parseできれば有効
+        return True
+    except (OSError, ValueError):
+        return False
 
 
 def _load_hot_articles(store: ArticleStore, now: datetime, hot_hours: int, cap: int = 5000) -> list:
@@ -74,7 +103,9 @@ def _verify(sources: List[dict], timeout: int, retry: int) -> int:
             fail += 1
             print(f"  FAIL  {src['id']:24} http={result.http_status} {result.error}  {src['url']}")
     print(f"\n到達可能: {ok} / 失敗: {fail}")
-    return 0 if fail == 0 else 2
+    # --verify は到達性の「診断」。到達不能があってもコマンド自体は成功扱い（exit 0）。
+    # exit 2 はCLI引数不正のみに限定する（§2）。
+    return 0
 
 
 def main(argv=None) -> int:
@@ -118,11 +149,28 @@ def main(argv=None) -> int:
 
     # GitHub Actions のチェックアウトには SQLite 索引が含まれない（.gitignore）。
     # 索引が空でコミット済みシャードがある場合は、シャードから索引を再構築して
-    # 実行間の増分取得・重複排除を成立させる。
+    # 実行間の増分取得・重複排除を成立させる（§5 索引の永続性）。
+    # 再構築対象は retention 窓（retention_days）内のシャードに限定し、いずれ
+    # 削除される古いシャードまで毎回読み込む無駄を省く（増加に伴う遅延を抑える）。
+    # 索引はシャード(=source of truth)から再構築可能な派生データなので、消失しても
+    # 記事は失われない。再構築の件数・所要秒数は run 統計・Summary に記録する。
+    retention_days_cfg = tank_cfg.get("retention_days")
+    rebuild_from = None
+    if retention_days_cfg is not None:
+        rebuild_from = (now - timedelta(days=int(retention_days_cfg))).astimezone(_JST).strftime("%Y-%m-%d")
+    index_rebuilt = False
+    index_rebuilt_count = 0
+    index_rebuild_seconds = 0.0
     if index.count() == 0:
-        restored = rebuild_index_from_store(store, index)
-        if restored:
-            print(f"SQLite索引が空のため、シャードから {restored} 件を再構築しました。")
+        import time as _time
+        _t0 = _time.monotonic()
+        index_rebuilt_count = rebuild_index_from_store(store, index, date_from=rebuild_from)
+        index_rebuild_seconds = _time.monotonic() - _t0
+        index_rebuilt = index_rebuilt_count > 0
+        if index_rebuilt:
+            print(f"SQLite索引が空のため、シャードから {index_rebuilt_count} 件を "
+                  f"{index_rebuild_seconds:.2f}秒で再構築しました"
+                  f"{'（retention窓: ' + rebuild_from + '以降）' if rebuild_from else ''}。")
 
     clusters: dict = {}
     if not live_sources:
@@ -146,16 +194,20 @@ def main(argv=None) -> int:
     # 保持期間（retention）: article_tank.retention_days（既定null=無期限）より古い
     # シャード・索引行を削除し、ストアの無制限な肥大化を防ぐ（§ retention）。
     # --verifyでは到達しない・--dry-runでも「取得・保存」の一部として実行する。
-    retention_days = tank_cfg.get("retention_days")
+    retention_days = retention_days_cfg
+    retention_deleted_shards = 0
     if retention_days is not None:
         cutoff_date = (now - timedelta(days=int(retention_days))).astimezone(_JST).strftime("%Y-%m-%d")
         purged_dates = store.purge_shards_before(cutoff_date)
         if purged_dates:
+            retention_deleted_shards = len(purged_dates)
             purged_rows = index.delete_before(cutoff_date)
             store.write_manifest()
             print(
                 f"保持期間（{retention_days}日）を超えたシャード{len(purged_dates)}件"
                 f"（{purged_dates[0]}〜{purged_dates[-1]}）・索引{purged_rows}件を削除しました。"
+                f" ※日付品質ガードにより、未来/超過去の異常日付は fetched_at へ補正済みのため、"
+                f"最近の記事が古いシャードへ紛れて誤削除されることはありません。"
             )
 
     # ソース健全性の集計
@@ -169,36 +221,62 @@ def main(argv=None) -> int:
     clusters_updated = sum(1 for c in clusters.values() if c.article_count > 1)
     quarantine_count = len(list(store.quarantine_dir.glob("*.corrupt")))
 
+    # Source偏重の観測（§9）。保存は全件維持し、ここでは集中度の「表示」のみ行う。
+    balance_cfg = config.get("source_balance", {})
+    concentration = source_concentration(
+        source_results,
+        warning_share=float(balance_cfg.get("warning_share", 0.35)),
+        critical_share=float(balance_cfg.get("critical_share", 0.60)),
+    )
+
     completed = datetime.now(timezone.utc)
 
     # 統計を保存（Package生成前でも必ず残す）
-    def _persist_stats(package_items: int, package_size: int) -> dict:
+    def _persist_stats(package_items: int, package_size: int, run_status: str,
+                       pkg_distribution: Optional[dict] = None) -> dict:
         stats = build_run_stats(
             run_id=run_id, started_at=now, completed_at=completed,
             configured_sources=len(all_sources), enabled_sources=enabled_count,
             source_results=source_results, total_tank_articles=index.count(),
             package_items=package_items, package_size=package_size,
             clusters_created=clusters_created, clusters_updated=clusters_updated,
+            run_status=run_status,
+            index_rebuilt=index_rebuilt, index_rebuilt_count=index_rebuilt_count,
+            index_rebuild_seconds=index_rebuild_seconds,
+            retention_deleted_shards=retention_deleted_shards,
+            quarantine_count=quarantine_count,
+            concentration=concentration, package_source_distribution=pkg_distribution or {},
         )
         save_run_stats(str(stats_dir), stats)
         return stats
 
     if args.dry_run:
-        stats = _persist_stats(0, 0)
+        run_status = "degraded" if failed > 0 else "healthy"
+        stats = _persist_stats(0, 0, run_status)
         print(json.dumps({"run_stats": stats}, ensure_ascii=False, indent=2))
-        print("--dry-run のため配信パッケージ生成をスキップします。")
+        print(f"RUN STATUS: {run_status.upper()}（--dry-run のため配信Package生成はスキップ）")
         index.close()
-        return 0 if failed == 0 else 2
+        return 0  # dry-run はコマンド成功。exit 2 は使わない。
 
-    # §10: 全ソース失敗時は既存Packageを空Packageで上書きしない（degraded/failureで終了）。
+    # §4/§10: 全ソース失敗時は既存Packageを空Packageで上書きしない（既存Packageを保護）。
+    #   - 既存の有効なPackageがある → degraded / exit 0（Data Tankとして利用可能・維持）。
+    #   - 新旧どちらのPackageも無い    → failed  / exit 1（致命状態）。
     if all_failed:
-        stats = _persist_stats(0, 0)
+        has_existing = _existing_package_is_valid(published_dir)
+        run_status = "degraded" if has_existing else "failed"
+        stats = _persist_stats(0, 0, run_status)
         print(json.dumps({"run_stats": stats}, ensure_ascii=False, indent=2))
-        print("全ソースの取得に失敗したため、配信Packageは更新しませんでした（既存Packageを保護）。")
+        if has_existing:
+            print("RUN STATUS: DEGRADED（全ソース取得失敗。既存の有効なPackageを維持しました＝"
+                  "Data Tankとして利用可能。exit 0）")
+        else:
+            print("RUN STATUS: FAILED（全ソース取得失敗かつ既存の有効Packageなし。exit 1）")
         index.close()
-        return 1
+        return resolve_exit_code(run_status)
 
-    # 実記事から配信Packageを生成（hot window の記事＋本 runのクラスタ）
+    # 実記事から配信Packageを生成（hot window の記事＋本 runのクラスタ）。
+    # 候補・Package選定段階では diversity.select_diverse が同一ソースの占有率に
+    # 上限を課す（§9: 偏重制御は保存段階でなく選定段階で行う）。
     hot_articles = _load_hot_articles(store, now, hot_hours)
     tank_status = build_tank_status(index, now, quarantine_count=quarantine_count)
     quality = build_quality_metrics(hot_articles, index, reaction_coverage_count=0)
@@ -217,19 +295,33 @@ def main(argv=None) -> int:
             "max_historical_matches": pub_cfg.get("max_historical_matches", 20),
             "max_source_health": pub_cfg.get("max_source_health", 100),
             "package_max_uncompressed_mb": pub_cfg.get("package_max_uncompressed_mb", 5),
+            "max_published_source_share": float(balance_cfg.get("max_published_share", 0.20)),
         },
     )
     manifest = publish_package(package, str(published_dir))
+    publication_ok = manifest.get("publication_status") == "success"
+    pkg_dist = package_source_distribution(package.get("hot_articles", []))
+
+    run_status = compute_run_status(
+        enabled_count=enabled_count, failed_count=failed, unchanged_count=unchanged,
+        success_count=success, all_failed=all_failed,
+        publication_ok=publication_ok, package_published=True,
+    )
 
     package_items = sum(manifest.get("item_counts", {}).values()) if manifest.get("item_counts") else 0
-    stats = _persist_stats(package_items, manifest.get("compressed_size", 0))
+    stats = _persist_stats(package_items, manifest.get("compressed_size", 0), run_status, pkg_dist)
 
     print(json.dumps({"run_stats": stats, "publication_manifest": manifest}, ensure_ascii=False, indent=2))
+    if concentration.get("concentration_status") in ("warning", "critical"):
+        print(f"::warning:: Source偏重: {concentration['top_source']} が新規の "
+              f"{concentration['top_source_share']*100:.0f}% を占有"
+              f"（{concentration['concentration_status']}）。保存は全件維持、Packageは選定段階で分散化。")
+    print(f"RUN STATUS: {run_status.upper()}"
+          f"（publication={'success' if publication_ok else 'failed'} / "
+          f"失敗ソース={failed} / 新着={success}）")
     index.close()
 
-    if manifest.get("publication_status") != "success":
-        return 1
-    return 2 if failed > 0 else 0
+    return resolve_exit_code(run_status)
 
 
 if __name__ == "__main__":

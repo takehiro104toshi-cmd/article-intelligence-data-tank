@@ -19,6 +19,48 @@ def new_run_id(now: Optional[datetime] = None) -> str:
     return now.strftime("%Y%m%dT%H%M%SZ-") + uuid.uuid4().hex[:6]
 
 
+# ---------- Run status（Production Stabilization §2, §4） ----------
+#
+# healthy  … Package生成成功・重大なデータ破損なし（全ソース成功/未更新でも一部失敗でも可）
+# degraded … 有効なPackageは存在するが、一部ソース失敗・新着0・market_reaction 0 等
+#            の警告要因がある。Data Tankとしては利用可能。
+# failed   … 新旧どちらのPackageも利用不能（全ソース失敗で非公開/validation失敗 等）。
+#
+# 終了コードは resolve_exit_code():
+#   healthy/degraded → 0（一部ソース失敗で赤くしない）
+#   failed          → 1（致命的障害のみ）
+#   ※ exit 2 は CLI 引数不正のみ（argparse が自動で返す）。degraded を 2 で表さない。
+
+def compute_run_status(
+    *,
+    enabled_count: int,
+    failed_count: int,
+    unchanged_count: int,
+    success_count: int,
+    all_failed: bool,
+    publication_ok: bool,
+    package_published: bool,
+) -> str:
+    """run_status（healthy/degraded/failed）を判定する（純関数・テスト可能）。"""
+    if not package_published:
+        # Package未公開: 全ソース失敗で保護スキップ、または publication 失敗。
+        return "failed"
+    if not publication_ok:
+        return "failed"
+    # ここから publication 成功。degraded 要因を評価する。
+    degraded = (
+        failed_count > 0            # 一部ソース失敗（403/429/timeout 等）
+        or all_failed               # （publication成功でここには通常来ないが保険）
+        or success_count == 0       # 新着0・全件重複・全未更新
+    )
+    return "degraded" if degraded else "healthy"
+
+
+def resolve_exit_code(run_status: str) -> int:
+    """run_status → 終了コード。healthy/degraded=0, failed=1（exit 2 は使わない）。"""
+    return 1 if run_status == "failed" else 0
+
+
 def build_run_stats(
     run_id: str,
     started_at: datetime,
@@ -31,6 +73,14 @@ def build_run_stats(
     package_size: int,
     clusters_created: int = 0,
     clusters_updated: int = 0,
+    run_status: str = "healthy",
+    index_rebuilt: bool = False,
+    index_rebuilt_count: int = 0,
+    index_rebuild_seconds: float = 0.0,
+    retention_deleted_shards: int = 0,
+    quarantine_count: int = 0,
+    concentration: Optional[dict] = None,
+    package_source_distribution: Optional[dict] = None,
 ) -> dict:
     successful = sum(1 for r in source_results if r.get("status") == "success")
     unchanged = sum(1 for r in source_results if r.get("status") == "unchanged")
@@ -39,12 +89,15 @@ def build_run_stats(
     new_unique = sum(int(r.get("new", 0)) for r in source_results)
     exact_dups = sum(int(r.get("duplicates", 0)) for r in source_results)
     syndicated = sum(int(r.get("syndicated_duplicates", 0)) for r in source_results)
+    date_inferred_total = sum(int(r.get("date_inferred", 0)) for r in source_results)
     stored = new_unique
     warnings = sum(1 for r in source_results if r.get("status") == "unchanged")
     errors = failed
+    concentration = concentration or {}
 
     return {
         "run_id": run_id,
+        "run_status": run_status,
         "started_at": started_at.astimezone(timezone.utc).isoformat(),
         "completed_at": completed_at.astimezone(timezone.utc).isoformat(),
         "total_seconds": round((completed_at - started_at).total_seconds(), 3),
@@ -57,10 +110,21 @@ def build_run_stats(
         "new_unique_articles": new_unique,
         "exact_duplicates": exact_dups,
         "syndicated_duplicates": syndicated,
+        "date_anomalies": date_inferred_total,
         "clusters_created": clusters_created,
         "clusters_updated": clusters_updated,
         "stored_articles": stored,
         "total_tank_articles": total_tank_articles,
+        "index_rebuilt": index_rebuilt,
+        "index_rebuilt_count": index_rebuilt_count,
+        "index_rebuild_seconds": round(index_rebuild_seconds, 3),
+        "retention_deleted_shards": retention_deleted_shards,
+        "quarantine_count": quarantine_count,
+        "top_source": concentration.get("top_source", ""),
+        "top_source_new_count": concentration.get("top_source_new_count", 0),
+        "top_source_share": concentration.get("top_source_share", 0.0),
+        "source_concentration": concentration.get("concentration_status", "ok"),
+        "package_source_distribution": package_source_distribution or {},
         "package_items": package_items,
         "package_size": package_size,
         "warning_count": warnings,

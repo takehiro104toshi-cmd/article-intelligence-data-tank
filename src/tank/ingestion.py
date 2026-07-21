@@ -17,6 +17,7 @@ from typing import Callable, Dict, List, Optional
 from .classify import classify_article
 from .cluster import find_matching_cluster, new_cluster_id, upsert_cluster
 from .cursor import CursorStore, fetch_from_datetime
+from .date_quality import sanitize_published_at
 from .dedup import compute_hashes, find_duplicate_group
 from .index import ArticleIndex
 from .models import Article, EventCluster, SourceCursor
@@ -34,6 +35,15 @@ def _jst_date(dt: datetime) -> str:
 def build_article_from_raw(raw: dict, source_cfg: dict, ingestion_run_id: str, now: datetime) -> Article:
     """RSS/APIの生レコード(dict)から Article を組み立てる（正規化・ハッシュ計算込み）。"""
     canonical = normalize_url(raw.get("url", ""))
+    # 日付品質ガード（§7）: 未来/超過去/解析不能の published_at は記事を破棄せず
+    # fetched_at へ補正し、date_inferred=True・元文字列(raw_published_at)を保持する。
+    fetched_iso = now.isoformat()
+    published_clean, date_inferred, raw_published_at, _date_anomaly = sanitize_published_at(
+        parsed_iso=raw.get("published_at_utc", "") or "",
+        raw_string=raw.get("published_raw", "") or "",
+        fetched_at_utc=fetched_iso,
+        now=now,
+    )
     article = Article(
         canonical_url=canonical,
         normalized_url=canonical,
@@ -49,10 +59,12 @@ def build_article_from_raw(raw: dict, source_cfg: dict, ingestion_run_id: str, n
         body_storage_type="public_excerpt",
         body_available=bool(raw.get("description")),
         rights_classification="public",
-        published_at_utc=raw.get("published_at_utc", now.isoformat()),
-        fetched_at_utc=now.isoformat(),
+        published_at_utc=published_clean,
+        fetched_at_utc=fetched_iso,
         first_seen_at=now.isoformat(),
         last_seen_at=now.isoformat(),
+        date_inferred=date_inferred,
+        raw_published_at=raw_published_at,
         ingestion_run_id=ingestion_run_id,
     )
     # Production News Sources Phase: source_country を記事の国エンティティへ反映する。
@@ -61,6 +73,9 @@ def build_article_from_raw(raw: dict, source_cfg: dict, ingestion_run_id: str, n
     if source_cfg.get("country"):
         article.countries = [source_cfg["country"]]
     from datetime import timedelta
+    # published_at_utc は日付品質ガードで補正済み（未来/超過去/欠損 → fetched_at）。
+    # これにより異常な年(例:2008)のシャードへ記事が紛れ込み、retentionで
+    # 最近の記事が誤削除されるのを防ぐ。
     article.published_at_jst = _jst_date(
         datetime.fromisoformat(article.published_at_utc.replace("Z", "+00:00"))
         if article.published_at_utc else now
@@ -106,6 +121,7 @@ def run_ingestion_for_source(
     articles_by_date: Dict[str, List[Article]] = {}
     new_count = 0
     dup_count = 0
+    date_inferred_count = 0
     articles_by_id: Dict[str, Article] = {}
 
     for raw in raw_articles:
@@ -115,6 +131,8 @@ def run_ingestion_for_source(
             dup_count += 1
             continue
 
+        if article.date_inferred:
+            date_inferred_count += 1
         classify_article(article)
         article.freshness_score = freshness_score(article.published_at_utc, now)
         article.source_score = article.source_trust
@@ -149,7 +167,8 @@ def run_ingestion_for_source(
     cursor.consecutive_failures = 0
     cursor_store.update(cursor)
 
-    return {"source": source_name, "fetched": len(raw_articles), "new": new_count, "duplicates": dup_count}
+    return {"source": source_name, "fetched": len(raw_articles), "new": new_count,
+            "duplicates": dup_count, "date_inferred": date_inferred_count}
 
 
 def run_ingestion_all(
@@ -178,16 +197,20 @@ def _iso(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).isoformat()
 
 
-def rebuild_index_from_store(store: ArticleStore, index: ArticleIndex) -> int:
+def rebuild_index_from_store(store: ArticleStore, index: ArticleIndex,
+                             date_from: Optional[str] = None) -> int:
     """コミット済みのシャード（テキスト）から SQLite 索引を再構築する。
 
     GitHub Actions のチェックアウトには索引(sqlite)が含まれない（.gitignore）。
     シャードは source of truth（追記型テキスト）なので、索引が空のときは
     シャードから重複排除用のハッシュを含む索引を復元し、実行間の増分・重複排除を成立させる。
+
+    date_from（'YYYY-MM-DD'）を渡すと、その日以降のシャードだけを再構築対象にする
+    （retention窓に限定して、いずれ削除される古いシャードまで毎回読み込む無駄を省く）。
     戻り値: 索引へ投入した記事数。
     """
     by_date: Dict[str, List[Article]] = {}
-    for article in store.iter_shards():
+    for article in store.iter_shards(date_from=date_from):
         date_key = article.published_at_jst or (article.fetched_at_jst or "")[:10]
         by_date.setdefault(date_key, []).append(article)
     total = 0

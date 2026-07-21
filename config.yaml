@@ -43,6 +43,25 @@ publication:
   max_source_health: 100
   package_max_uncompressed_mb: 5
 
+# Source偏重（source concentration）制御・観測（Production Stabilization §9）。
+# 保存段階では全記事を保持し、ここでの制御は候補・Package選定段階でのみ適用する。
+#   - warning_share / critical_share: 新規記事に占める最多ソースの比率がこの閾値を
+#     超えたら Summary に警告を出す（あくまで観測。件数だけで低品質扱いしない）。
+#   - max_published_share: 配信Package(hot_articles)で同一ソースが占めてよい上限比率
+#     （diversity.select_diverse に渡す。保存済み記事の削除は一切しない）。
+source_balance:
+  warning_share: 0.35
+  critical_share: 0.60
+  max_published_share: 0.20
+
+# 日付品質ガード（Production Stabilization §7）。RSS/Atomのpublished_atが
+# 未来/超過去/解析不能な場合、記事を破棄せず fetched_at へ補正し、date_inferred=true・
+# 元文字列(raw_published_at)を保持する。これにより異常な年のシャードへ記事が
+# 紛れ込んで retention に誤削除されるのを防ぐ。
+date_quality:
+  max_future_hours: 24     # 取得時刻より何時間以上未来なら異常とみなすか
+  max_age_years: 20        # 何年以上前を異常とみなすか（通常ニュースfeed想定）
+
 # ニュースソースは config/sources.yaml で管理する（§5）。初回のライブ取得前に
 # `python scripts/run_ingestion.py --verify` で各URLの到達性を確認すること。
 sources_file: "config/sources.yaml"
@@ -59,3 +78,32 @@ category_keywords: {}
 data_dir: "data/article_store"
 published_dir: "published/latest"
 snapshots_dir: "published/snapshots"
+
+# ===== Rashinban Private Insight Vault（private記事の保存・分析・未来予測） =====
+# 本番の保存先はCloudflare Worker + KV（非公開）。ここはローカル開発/分析パイプラインの設定。
+# 本リポジトリはPublicのため、data/private_insights/ は.gitignore済み＝絶対にcommitされない。
+private_insight:
+  enabled: true
+  storage_backend: "private_local"    # ローカル開発/テスト用。本番はWorker+KV
+  encrypt_raw_body: true              # Worker側でAES-GCM暗号化（ローカルAdapterは開発専用・平文）
+  publish_derived_summary: true       # allowlistされた派生情報のみ公開レポートへ
+  publish_raw_body: false             # 本文は絶対に公開しない（コード上もallowlistに存在しない）
+  max_body_chars: 30000
+  dedup_enabled: true
+  analysis_enabled: true
+  forecast_enabled: true
+  forecast_review_enabled: true
+  retention_days: null                # private領域はユーザーが削除操作するまで保持
+
+private_insight_analysis:
+  provider: ""                        # "" = ANTHROPIC_API_KEYがあればanthropic、無ければrule_based
+  model: ""                           # 空 = 環境変数 PRIVATE_INSIGHT_MODEL / 既定値
+  timeout_seconds: 60
+  retry_count: 1
+  fallback_to_rule_based: true
+  # confidence上限（§9）。evidence_levelごとの上限
+  confidence_caps:
+    article_based_hypothesis: 0.60
+    historically_supported: 0.75
+    market_confirmed: 0.85
+    speculative: 0.40

@@ -123,7 +123,8 @@ def _rss_item(item, source_url: str) -> Optional[dict]:
                     break
         link = urljoin(source_url, link) if link else ""
         desc = strip_html(_first_text(item, {"description", "summary", "encoded"}))
-        pub = _parse_datetime(_first_text(item, {"pubDate", "date", "published"}))
+        pub_raw = _first_text(item, {"pubDate", "date", "published"}).strip()
+        pub = _parse_datetime(pub_raw)
         upd = _parse_datetime(_first_text(item, {"updated", "modified"}))
         if not title and not link:
             return None  # タイトルもURLも無い item は捨てる（malformed item）
@@ -133,6 +134,8 @@ def _rss_item(item, source_url: str) -> Optional[dict]:
             "description": desc[:_MAX_EXCERPT],
             "published_at_utc": pub or upd,
             "updated_at_utc": upd,
+            # 元の公開日時文字列（日付品質ガード用。異常検出時の検証に使う）。
+            "published_raw": pub_raw,
         }
     except Exception:  # noqa: BLE001  1件の破損で全体を止めない
         return None
@@ -153,7 +156,8 @@ def _atom_entry(entry, source_url: str) -> Optional[dict]:
                         break
         link = urljoin(source_url, link) if link else ""
         desc = strip_html(_first_text(entry, {"summary", "content", "subtitle"}))
-        pub = _parse_datetime(_first_text(entry, {"published", "issued"}))
+        pub_raw = _first_text(entry, {"published", "issued"}).strip()
+        pub = _parse_datetime(pub_raw)
         upd = _parse_datetime(_first_text(entry, {"updated", "modified"}))
         if not title and not link:
             return None
@@ -163,6 +167,8 @@ def _atom_entry(entry, source_url: str) -> Optional[dict]:
             "description": desc[:_MAX_EXCERPT],
             "published_at_utc": pub or upd,
             "updated_at_utc": upd,
+            # 元の公開日時文字列（日付品質ガード用）。
+            "published_raw": pub_raw,
         }
     except Exception:  # noqa: BLE001
         return None
