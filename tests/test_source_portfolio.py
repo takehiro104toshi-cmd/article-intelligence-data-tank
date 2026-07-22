@@ -55,7 +55,10 @@ def test_validate_missing_field_and_bad_values():
 
 _VERIFIED_ENABLE_STATUSES = {"verified_healthy", "verified_unchanged"}
 _UNVERIFIED_STATUSES = {"pending", "unreachable", "forbidden_403", "verified_but_unstable",
-                        "not_feed", "malformed", "requires_auth", "deprecated", "duplicate_source"}
+                        "not_feed", "malformed", "requires_auth", "deprecated", "duplicate_source",
+                        # Batch 1.5: 公式JSON APIソース。RSS到達性では検証できず、APIキー登録後の
+                        # 実レスポンスで検証する（ユーザーの手順）。未有効化のまま安全に保持する。
+                        "pending_api_key"}
 
 
 def test_no_source_enabled_without_verification():
@@ -81,6 +84,18 @@ def test_batch1_candidates_all_resolved_no_pending():
     d = yaml.safe_load((ROOT / "config" / "sources.yaml").read_text(encoding="utf-8"))
     pending = [s for s in d["sources"] if s.get("verify_status") == "pending"]
     assert pending == [], f"未検証のまま残っている候補があります: {[s['id'] for s in pending]}"
+
+
+def test_api_sources_disabled_until_key_verified():
+    """Batch 1.5: 公式JSON APIソース(EDINET/e-Stat)はキー登録＋実レスポンス検証まで
+    enabled=false・verify_status=pending_api_key で安全に保持する（§10/§13）。"""
+    d = yaml.safe_load((ROOT / "config" / "sources.yaml").read_text(encoding="utf-8"))
+    api_sources = [s for s in d["sources"] if s.get("adapter") in ("edinet", "estat")]
+    assert {s["adapter"] for s in api_sources} == {"edinet", "estat"}
+    for s in api_sources:
+        assert s["enabled"] is False, f"{s['id']}: キー検証前は有効化しない"
+        assert s.get("verify_status") == "pending_api_key"
+        assert s.get("format") == "json"
 
 
 # ---------- Coverage 指標（§17-38〜43） ----------

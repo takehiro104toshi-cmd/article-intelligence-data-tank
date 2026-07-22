@@ -1124,3 +1124,58 @@ sources:
     rights_classification: public
     rate_limit_policy: gentle
     notes: "医薬承認・リコール等。要確認。"
+
+  # ============================================================
+  # Phase 3 Batch 1.5: 公式JSON API ソース（EDINET / e-Stat）
+  # ------------------------------------------------------------
+  # RSSではなくJSON API。adapter で取得方式を切替える。APIキー(Secret)が
+  # 未設定なら自動でスキップ（DEGRADED/exit 0・他ソースは継続）。
+  #   EDINET: Secret EDINET_SUBSCRIPTION_KEY（EDINET API v2 の Subscription-Key）
+  #   e-Stat: Secret ESTAT_APP_ID（e-Stat API の appId）
+  # url は参照用（実際のリクエストURLはアダプタがキー付きで組み立てる）。
+  # ★実運用前に、キー登録後の実レスポンスで doctype_map / series_whitelist を検証すること。
+  # ============================================================
+  - id: edinet_disclosures
+    name: EDINET — 法定開示（有報/四半期/臨報/大量保有）
+    url: "https://api.edinet-fsa.go.jp/api/v2/documents.json"
+    enabled: false
+    # API系ソースはRSS到達性(verify_candidates)では検証できない。APIキー登録後の
+    # 実レスポンスで検証する専用ステータス。検証・有効化はユーザーの手順（§10/§13）。
+    verify_status: pending_api_key
+    adapter: edinet
+    format: json
+    source_class: regulator
+    tier: 1
+    country: JP
+    region: Asia
+    language: ja
+    primary_category: corporate_disclosures
+    secondary_categories: [earnings, large_shareholding]
+    trust_score: 95
+    fetch_interval_minutes: 60
+    max_items_per_fetch: 2000
+    rights_classification: public
+    rate_limit_policy: gentle
+    disclosure_source: true
+    notes: "法定開示のメタデータのみ（PDF/XBRL本文は取得しない）。TDnet適時開示の代替ではない。EDINET_SUBSCRIPTION_KEY要。"
+
+  - id: estat_macro
+    name: e-Stat — 主要マクロ統計の更新（GDP/CPI/雇用/消費/生産/貿易等）
+    url: "https://api.e-stat.go.jp/rest/3.0/app/json/getStatsList"
+    enabled: false
+    verify_status: pending_api_key
+    adapter: estat
+    format: json
+    source_class: statistics_agency
+    tier: 1
+    country: JP
+    region: Asia
+    language: ja
+    primary_category: gdp
+    secondary_categories: [inflation, employment, macroeconomics]
+    trust_score: 94
+    fetch_interval_minutes: 240
+    max_items_per_fetch: 200
+    rights_classification: public
+    rate_limit_policy: gentle
+    notes: "記事数増加でなくマクロ統計Source。対象系列(series_whitelist)のみ。ESTAT_APP_ID要。"

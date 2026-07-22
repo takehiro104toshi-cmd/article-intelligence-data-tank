@@ -72,6 +72,9 @@ def build_article_from_raw(raw: dict, source_cfg: dict, ingestion_run_id: str, n
     # 「同一国＋同一カテゴリ＋類似見出し」でクラスタが形成できるようにする最小の補完。
     if source_cfg.get("country"):
         article.countries = [source_cfg["country"]]
+    # API Source（EDINET/e-Stat・Batch 1.5）の構造化メタデータを引き継ぐ（本文は含めない）。
+    if raw.get("source_metadata"):
+        article.source_metadata = dict(raw["source_metadata"])
     from datetime import timedelta
     # published_at_utc は日付品質ガードで補正済み（未来/超過去/欠損 → fetched_at）。
     # これにより異常な年(例:2008)のシャードへ記事が紛れ込み、retentionで
@@ -336,8 +339,13 @@ def run_live_ingestion_all(
     max_workers: int = 1,
     per_host_max: int = 2,
     user_agent: Optional[str] = None,
+    api_ctx: Optional[dict] = None,
+    json_transport=None,
 ) -> List[dict]:
-    """全ソースをライブ取得する（§2 並列取得）。
+    """全ソースをライブ取得する（§2 並列取得・Batch 1.5でAPIアダプタ対応）。
+
+    api_ctx を渡すと source_cfg["adapter"] が rss 以外（edinet/estat）のソースを
+    公式JSON APIから取得する。RSSソースは従来どおり fetch_feed で取得する。
 
     HTTP取得(fetch_feed)だけを ThreadPoolExecutor で並列化し、保存・Index・Cursor更新は
     **メインスレッドで結果を Source ID 順に直列適用**する（SQLite/shard の単一writerを保証）。
@@ -356,6 +364,12 @@ def run_live_ingestion_all(
         cur = cursor_store.get(name)
         cur.last_fetch_started_at = _iso(now)  # 開始時刻の記録のみ（updateは適用時）
         try:
+            adapter = (src.get("adapter") or "rss").lower()
+            if adapter != "rss":
+                # Batch 1.5: EDINET/e-Stat 等の公式JSON API（キー未設定はfailed→DEGRADED/exit0）。
+                from .source_adapters import fetch_via_adapter
+                return src, fetch_via_adapter(src, now, api_ctx or {},
+                                              json_transport=json_transport, timeout=timeout)
             return src, fetch_feed(src, cur, timeout=timeout, retry=retry,
                                    transport=transport, max_items=max_items,
                                    user_agent=user_agent)

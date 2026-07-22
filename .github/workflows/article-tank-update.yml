@@ -71,6 +71,10 @@ jobs:
           MODE: ${{ github.event.inputs.mode }}
           # §6 SEC等の連絡先付きUser-Agent用。未設定でも他ソースの取得は継続する。
           DATA_TANK_CONTACT_EMAIL: ${{ secrets.DATA_TANK_CONTACT_EMAIL }}
+          # Batch 1.5 公式JSON APIキー（無料登録）。未設定でも該当ソースだけDEGRADED/exit0で
+          # スキップし、他ソース取得・Package生成は継続する（§10）。
+          EDINET_SUBSCRIPTION_KEY: ${{ secrets.EDINET_SUBSCRIPTION_KEY }}
+          ESTAT_APP_ID: ${{ secrets.ESTAT_APP_ID }}
         run: |
           case "${MODE:-normal}" in
             verify)            python scripts/run_ingestion.py --verify ;;

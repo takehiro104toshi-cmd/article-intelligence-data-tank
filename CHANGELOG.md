@@ -1,5 +1,79 @@
 # CHANGELOG
 
+## v0.9.0 (2026-07-21) — API Source Adapter Layer: EDINET / e-Stat 公式JSON API（Batch 1.5）
+
+RSS/Atom専用だった取得層を拡張し、公式JSON APIソースを「既存パイプラインが食う生記事dict」へ
+正規化して供給する共通アダプタを追加した。第一弾は **EDINET（金融庁 法定開示 API v2）** と
+**e-Stat（政府統計 API v3.0）**。下流（正規化・dedup・cluster・shard保存・Index・retention・
+Package・run_status・exit code・Private Insight）は**すべて無改修**で流れる。
+
+★重要（未検証）★ サンドボックスは外部egress制限のため、**実APIレスポンスでの検証はできていない**。
+JSONキー名は公式ドキュメント準拠の想定で防御的に実装（複数キー名許容・欠損耐性）。実運用前に
+APIキー登録後の実レスポンスで doctype_map / series_whitelist を必ず検証すること。
+
+### 追加
+
+- **`src/tank/source_adapters.py`（新規）**: `fetch_edinet` / `fetch_estat` / `fetch_via_adapter`。
+  `json_transport(url, headers, timeout) -> (status, dict)` を注入可能（テストは偽JSONで決定的）。
+  - EDINET: 指定日の開示一覧（メタデータのみ・PDF/XBRL本文は**取得しない**＝§8）。取下げ
+    (withdrawalStatus=1)は保存対象外（§9）。canonical URL に docID を埋め込み、同一docIDが
+    自然にdedupされる（§9）。訂正(parentDocID)は metadata で識別（断定しない）。
+  - 分類（§3, §7）: config の `doctype_map` を優先。ただし map が汎用 `other`（例: 180=臨時報告書）
+    に落ちる場合のみ docDescription 語彙判別へ委ね、業績予想修正/M&A等の材料を潰さない。
+    未知コードも語彙判別へ委ね、判別不能なら other/low のまま（**推測で決算短信等へ強制分類しない**）。
+  - e-Stat: 記事数増加でなく**マクロ統計Source**（§4）。`series_whitelist`（GDP/CPI/雇用/消費/
+    生産/貿易/家計/企業/人口/住宅）に該当する表のみ対象化。`statistical_type=statistical_release`
+    と §6 の統計フィールド（stats_data_id/series_name/reference_period/released_at/value/unit/
+    previous_value/revised_value/revision_flag/official_url）を構造として保持（値は getStatsData
+    未取得のため空・構造だけ先に用意）。
+- **`Article.source_metadata: dict`（models.py）**: 開示/統計の構造化メタデータ（本文は含めない）。
+  `from_dict` は既知フィールドのみ取り込むため後方互換。
+- **config `api_sources:` ブロック**: `edinet.doctype_map`（暫定・★実レスポンスで要検証★）、
+  `estat.series_whitelist`。APIキーはコード固定せず環境変数/Secretから取得。
+- **config/sources.yaml**: `edinet_disclosures` / `estat_macro` を追加（**enabled: false /
+  verify_status: pending_api_key**）。API系ソースはRSS到達性(verify_candidates)では検証できない
+  ため専用ステータスを新設。キー登録＋実レスポンス検証まで安全に無効のまま保持する。
+- **ingestion.py**: `run_live_ingestion_all(..., api_ctx=, json_transport=)`。`_fetch_one` が
+  `source.adapter` が rss 以外なら `fetch_via_adapter` へ振り分ける（例外はsource isolation）。
+  保存記事へ `source_metadata` を引き継ぐ（本文は持たない）。
+- **run_ingestion.py**: config＋Secretから `api_ctx` を組み立てて渡す。EDINET/e-Stat有効なのに
+  キー未設定なら警告（他ソース取得・Package生成は継続＝§10）。
+- **workflow**: `EDINET_SUBSCRIPTION_KEY` / `ESTAT_APP_ID` Secret のenv渡しを追加（未設定でも継続）。
+
+### 責務の境界（重要）
+
+- EDINETは **TDnet／適時開示（決算短信・業績予想修正の適時開示 等）の完全な代替ではない**（§2）。
+  EDINETの役割＝法定開示・定期報告（有報/四半期/半期）・臨時報告書・大量保有報告。決算短信等
+  適時開示のうちEDINETで取れないものは「未取得」であり、推測で埋めない（§3）。
+- e-Statは記事件数ブースターではなく**マクロ統計Source**（§4）。§10: APIキー未設定は該当ソース
+  のみ DEGRADED/exit0 でスキップし、他ソース・Package生成を止めない。
+
+### テスト・検証（§13）
+
+- **`tests/test_source_adapters.py`（新規・20件）**: EDINET doc→raw / doctype_map分類 /
+  180の語彙委譲 / 確定コード優先 / 未知コードフォールバック / 取下げスキップ / 訂正フラグ /
+  api_key未設定→failed / HTTPエラー / e-Stat whitelist / statistical_type + §6フィールド /
+  単一TABLE_INFのlist正規化 / ディスパッチ（edinet/estat/unknown） / パイプライン統合
+  （source_metadata保持・本文非保持・同一docID dedup・キー未設定はisolated failure）。
+- **`test_source_portfolio.py`**: `pending_api_key` を未検証ステータスに追加、API系ソースが
+  キー検証前は enabled:false であることを検証する専用テストを追加。
+- **163 → 184 passed**（全件green）。
+- **スタブ2回巡回**（外部ネット不可のため偽JSON）: Run#1 EDINET 3new/e-Stat 1new（取下げ・
+  非対象統計は除外）、Run#2 全dedup（new=0）。保存記事は source_metadata を保持し body 非保持。
+- **Private Insight 保持確認**: 本Batchで private_insight 関連コードは**一切変更していない**（§12）。
+
+### 次のステップ（ユーザー作業）
+
+1. EDINET Subscription-Key と e-Stat appId を無料登録し、GitHub Secrets（`EDINET_SUBSCRIPTION_KEY`
+   / `ESTAT_APP_ID`）へ登録。
+2. 実レスポンスで `doctype_map` / `series_whitelist` を検証（★特にdocTypeCodeの実値★）。
+3. 問題なければ `edinet_disclosures` / `estat_macro` を `enabled: true` /
+   `verify_status: verified_healthy` へ変更。
+4. （別件）`DATA_TANK_CONTACT_EMAIL` を設定して verify_candidates を実行し、EDGAR 4種・METI の
+   403解消を確認（v0.8.2の宿題）。
+
+※ Batch 2 へは自動で進まない（§14）。本Batchの実運用検証後に方針を確認する。
+
 ## v0.8.2 (2026-07-21) — SEC準拠User-Agent＋日本公式ソース調査（Batch 1仕上げ）
 
 Batch 1 の verify で403だった SEC EDGAR・METI 等の原因を、正式なアクセス仕様に基づいて

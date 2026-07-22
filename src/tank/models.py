@@ -84,6 +84,12 @@ class Article:
     duplicate_group_id: str = ""
     event_cluster_id: str = ""
 
+    # API Source（EDINET/e-Stat 等・Batch 1.5）の構造化メタデータ置き場。
+    # RSSソースでは空。開示: disclosure_type/security_code/doc_type_code/doc_id 等、
+    # 統計: statistical_type/stats_data_id/series_name/reference_period/value/unit/
+    #       previous_value/revised_value/revision_flag 等を格納する（本文は入れない）。
+    source_metadata: dict = field(default_factory=dict)
+
     # 処理
     ingestion_run_id: str = ""
     parser_version: str = "1.0"

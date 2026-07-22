@@ -59,6 +59,39 @@ http:
   user_agent_name: "ArticleIntelligenceDataTank"
   contact_email_env: "DATA_TANK_CONTACT_EMAIL"
 
+# API Source Adapter Layer（Phase 3 Batch 1.5）。公式JSON APIソース（EDINET/e-Stat）の設定。
+# APIキーはコードへ固定せず環境変数/Secretから取得（未設定なら該当ソースはDEGRADED/exit0で
+# スキップ、他ソースとPackage生成は継続＝§10）。HTMLスクレイピングはしない・公式APIのみ（§9）。
+api_sources:
+  edinet:
+    api_key_env: "EDINET_SUBSCRIPTION_KEY"   # EDINET API v2 の Subscription-Key（無料登録）
+    # docTypeCode → disclosure_type の対応表（§7: ハードコードせずここで管理し、
+    # 実レスポンス確認後に修正できる。未知コードは other にフォールバック）。
+    # 下記は公式ドキュメント準拠の暫定値。★実運用前に実レスポンスで要検証★。
+    doctype_map:
+      "120": "earnings"           # 有価証券報告書
+      "130": "earnings"           # 訂正有価証券報告書
+      "140": "earnings"           # 四半期報告書
+      "150": "earnings"           # 訂正四半期報告書
+      "160": "earnings"           # 半期報告書
+      "180": "other"              # 臨時報告書（M&A/予想修正等はdocDescription語彙で判別）
+      "350": "large_shareholding" # 大量保有報告書
+      "360": "large_shareholding" # 変更報告書（大量保有）
+  estat:
+    api_key_env: "ESTAT_APP_ID"              # e-Stat API の appId（無料登録）
+    # 影響の大きい対象系列のみ（§4）。統計名にこれらの語を含む表だけを対象化する。
+    series_whitelist:
+      - "国民経済計算"    # GDP
+      - "消費者物価"      # CPI
+      - "労働力調査"      # 雇用
+      - "家計調査"        # 消費・家計
+      - "鉱工業指数"      # 鉱工業生産
+      - "貿易統計"        # 貿易
+      - "法人企業"        # 企業活動
+      - "人口推計"        # 人口
+      - "建築着工"        # 住宅・建設
+      - "住宅"
+
 # Candidate/Package選定段階でのソース・地域・カテゴリ占有率上限（Phase 3 §10）。
 # 保存段階では全件保持し、ここでの制御は選定段階のみに適用する。
 source_limits:

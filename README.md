@@ -233,6 +233,43 @@ AI分析（要約・所感・因果・市場影響・シナリオ形式の未来
 > Private Insight（羅針盤）はこの拡張の対象外です。Source取得・保存・配信の処理は
 > `data/private_insights/` を一切読み書きしません。
 
+## API Source Adapter Layer: EDINET / e-Stat（Batch 1.5 / v0.9）
+
+RSS/Atom専用だった取得層を拡張し、公式JSON APIソースを既存パイプラインへ供給する共通
+アダプタ（`src/tank/source_adapters.py`）を追加しました。第一弾は **EDINET（金融庁 法定開示
+API v2）** と **e-Stat（政府統計 API v3.0）** です。取得後の正規化・dedup・保存・Package生成は
+すべて従来のまま流れます（本文＝PDF/XBRLは取得しません。開示/統計の**メタデータのみ**）。
+
+### 責務の境界（誤解しやすい点）
+
+- **EDINET は TDnet／適時開示の完全な代替ではありません。** EDINETの役割は法定開示・定期報告
+  （有価証券報告書/四半期/半期）・臨時報告書・大量保有報告です。決算短信・業績予想の適時開示
+  など EDINET で取得できないものは「未取得」として扱い、推測で埋めません。
+- **e-Stat は記事数を増やすソースではなく「マクロ統計ソース」です。** GDP/CPI/雇用/消費/生産/
+  貿易/家計/企業/人口/住宅建設 など影響の大きい系列（`api_sources.estat.series_whitelist`）に
+  該当する統計表の更新だけを対象化します。
+
+### 使い方（APIキーの登録が必要）
+
+1. **EDINET**: EDINET APIの利用登録で無料の Subscription-Key を取得。
+   **e-Stat**: e-Stat（政府統計の総合窓口）でユーザー登録し無料の appId を取得。
+2. GitHubリポジトリの Secrets に登録:
+   - `EDINET_SUBSCRIPTION_KEY` = EDINETのSubscription-Key
+   - `ESTAT_APP_ID` = e-StatのappId
+   （未設定でも他ソースの取得・Package生成は継続します＝該当ソースだけ DEGRADED/exit0 でスキップ）
+3. **実レスポンスで対応表を検証**してから有効化してください。特に EDINET の `docTypeCode` の
+   実値と `config.yaml` の `api_sources.edinet.doctype_map` が一致するかを確認します（暫定値は
+   公式ドキュメント準拠の想定です）。
+4. 問題なければ `config/sources.yaml` の `edinet_disclosures` / `estat_macro` を
+   `enabled: true` / `verify_status: verified_healthy` に変更します。
+
+> API系ソースはRSSの到達性チェック（`--verify-candidates`）では検証できません。キー登録前は
+> `verify_status: pending_api_key` / `enabled: false` のまま安全に保持されます。
+>
+> ⚠️ 現状、**実APIレスポンスでの検証は未実施**です（開発環境が外部ネットワーク不可のため）。
+> JSONキー名は公式ドキュメント準拠で防御的に実装していますが、実運用前に必ずご自身の環境で
+> 実レスポンスを確認してください。HTMLスクレイピングは行わず、公式JSON APIのみを使用します。
+
 ## 実装フェーズ（依頼書§29準拠）
 
 - Phase A: Article Store（models/url_normalize/dedup/storage/cursor） ✅

@@ -148,6 +148,25 @@ def main(argv=None) -> int:
         print("::warning:: 連絡先メール(DATA_TANK_CONTACT_EMAIL)が未設定です。SEC/EDGАР等の"
               "連絡先付きUA必須ソースは403になる可能性があります（他ソースの取得は継続）。")
 
+    # §Batch 1.5 API Source: EDINET/e-Stat のAPIキーとconfig対応表から api_ctx を組み立てる。
+    # キー未設定ならアダプタが failed(api_key_unset) を返し、DEGRADED/exit 0 で他ソース継続（§10）。
+    api_cfg = config.get("api_sources", {})
+    edinet_cfg = api_cfg.get("edinet", {})
+    estat_cfg = api_cfg.get("estat", {})
+    edinet_key = os.environ.get(edinet_cfg.get("api_key_env", "EDINET_SUBSCRIPTION_KEY"), "")
+    estat_app_id = os.environ.get(estat_cfg.get("api_key_env", "ESTAT_APP_ID"), "")
+    api_ctx = {
+        "edinet_key": edinet_key,
+        "estat_app_id": estat_app_id,
+        "edinet_doctype_map": {str(k): v for k, v in (edinet_cfg.get("doctype_map", {}) or {}).items()},
+        "estat_series_whitelist": list(estat_cfg.get("series_whitelist", []) or []),
+    }
+    if any((s.get("adapter") or "rss") == "edinet" and s.get("enabled") for s in all_sources) and not edinet_key:
+        print("::warning:: EDINET有効ソースがありますが EDINET_SUBSCRIPTION_KEY 未設定です"
+              "（当該ソースはスキップ・DEGRADED。他ソースは継続）。")
+    if any((s.get("adapter") or "rss") == "estat" and s.get("enabled") for s in all_sources) and not estat_app_id:
+        print("::warning:: e-Stat有効ソースがありますが ESTAT_APP_ID 未設定です（同上）。")
+
     # sources_file は config ファイルのあるディレクトリを基準に解決する。
     config_dir = Path(args.config).resolve().parent
     all_sources = load_sources(config, base_dir=config_dir)
@@ -221,7 +240,7 @@ def main(argv=None) -> int:
             overlap_hours=overlap_hours, timeout=timeout, retry=retry,
             max_items=max_items, logger=_log,
             max_workers=max_fetch_workers, per_host_max=per_host_max,
-            user_agent=user_agent,
+            user_agent=user_agent, api_ctx=api_ctx,
         )
         store.write_manifest()
 
